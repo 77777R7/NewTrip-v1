@@ -19,6 +19,10 @@ The technical center of the project is a backend-authoritative **Trip Simulation
 
 ## Repository Map
 
+- `ROADMAP_14_DAY_CHECKLIST.md` is the two-week implementation checklist and progress log.
+- `AGENTS.md` contains mandatory rules for AI agents working in this repo.
+- `CONTEXT.md` defines the project domain language and V1 non-goals.
+- `docs/agents/` configures issue tracker, triage labels, domain-doc usage, agent roles, and the `mattpocock/skills` fit review.
 - `docs/source/` keeps the original PDF and full extracted text.
 - `docs/spec/00-deep-reading-record.md` records the full PDF reading and decision map.
 - `docs/spec/01-game-and-product-spec.md` captures the product loop, tutorial, UI experience, economy, vehicles, weather, photos, gacha, and daily systems.
@@ -52,4 +56,3 @@ The technical center of the project is a backend-authoritative **Trip Simulation
 8. Landmark/photo card system.
 9. Route unlock economy.
 10. Admin Config validation and analytics.
-

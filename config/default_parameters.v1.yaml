@@ -1,0 +1,88 @@
+simulation:
+  max_offline_hours: 8
+  min_offline_report_seconds: 60
+  base_offline_speed_kmph: 30
+  max_online_tick_seconds: 15
+  game_time_speed_multiplier: 10
+
+driving_modes:
+  hold_to_drive_multiplier: 1.00
+  auto_driving_multiplier: 0.85
+  hold_to_boost_multiplier: 1.10
+
+economy:
+  online_coin_per_km: 10
+  offline_coin_per_km: 4
+  online_token_km: 10
+  offline_token_km: 20
+  stamp_fragment_conversion:
+    fragments: 10
+    stamps: 1
+  trip_prep_fee:
+    formula: "clamp(round(route.total_distance_km * 0.35), 20, 300)"
+    min: 20
+    max: 300
+    tutorial: 0
+
+routes:
+  tutorial:
+    distance_km_min: 80
+    distance_km_max: 120
+    unlock_cost_stamps: 0
+    trip_prep_fee_coins: 0
+  short:
+    distance_km_min: 120
+    distance_km_max: 300
+    unlock_cost_stamps_min: 1
+    unlock_cost_stamps_max: 2
+  medium:
+    distance_km_min: 300
+    distance_km_max: 800
+    unlock_cost_stamps_min: 3
+    unlock_cost_stamps_max: 5
+  long:
+    distance_km_min: 800
+    distance_km_max: 1500
+    unlock_cost_stamps_min: 6
+    unlock_cost_stamps_max: 9
+  epic:
+    distance_km_min: 1500
+    distance_km_max: 3000
+    unlock_cost_stamps_min: 12
+    unlock_cost_stamps_max: 18
+
+maintenance:
+  fuel_price_per_liter: 2
+  base_clean_cost: 15
+  clean_price_per_point: 0.8
+  base_repair_cost: 25
+  repair_price_per_point: 1.2
+  durability_speed_penalty_min: 0.85
+  durability_fuel_penalty_max: 1.20
+
+weather_effects:
+  sunny: { speed: 1.00, fuel: 1.00, cleanliness: 1.00, durability: 1.00, photo: 1.05 }
+  cloudy: { speed: 0.98, fuel: 1.00, cleanliness: 1.02, durability: 1.00, photo: 1.00 }
+  rain: { speed: 0.92, fuel: 1.08, cleanliness: 1.40, durability: 1.08, photo: 0.95 }
+  fog: { speed: 0.88, fuel: 1.04, cleanliness: 1.08, durability: 1.03, photo: 1.10 }
+  snow: { speed: 0.80, fuel: 1.15, cleanliness: 1.25, durability: 1.18, photo: 1.08 }
+  sandstorm: { speed: 0.78, fuel: 1.18, cleanliness: 1.60, durability: 1.25, photo: 0.90 }
+
+terrain_effects:
+  highway: { speed: 1.08, fuel: 0.95, cleanliness: 0.95, durability: 0.95 }
+  mountain: { speed: 0.82, fuel: 1.20, cleanliness: 1.15, durability: 1.25 }
+  desert: { speed: 0.90, fuel: 1.12, cleanliness: 1.45, durability: 1.10 }
+
+gacha:
+  rates:
+    common: 70
+    rare: 22
+    epic: 7
+    legendary: 1
+  single_pull_cost_tokens: 20
+  ten_pull_cost_tokens: 180
+  pity:
+    rare: 10
+    epic: 30
+    legendary: 80
+

@@ -33,6 +33,17 @@ The technical center of the project is a backend-authoritative **Trip Simulation
 - `implementation/p0_backlog.md` turns the PDF into an executable P0/P1/P2 delivery backlog.
 - `implementation/testing_risk_checklist.md` records test gates, risk controls, analytics, and launch checks.
 
+## Day 1 Commands
+
+```bash
+npm install
+npm run dev
+npm run test
+npm run build
+```
+
+The Day 1 backend lives in `apps/backend/`. `GET /health` returns the minimal backend health payload.
+
 ## Non-Negotiable V1 Principles
 
 - Backend is authoritative for distance, time, rewards, offline progress, wallet changes, and gacha results.

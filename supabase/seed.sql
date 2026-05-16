@@ -1,0 +1,3 @@
+-- NewTrip V1 seed placeholder.
+-- Day 2 will insert one LIVE config, one default vehicle, Tutorial/Short routes,
+-- route segments, one weather profile, and the first required landmark.

@@ -1,0 +1,15 @@
+vehicle:
+  vehicle_key: van_common_001
+  display_name: "Blue Travel Van"
+  rarity: Common
+  base_speed_kmph: 72
+  fuel_capacity: 45
+  fuel_consumption_per_km: 0.075
+  durability: 100
+  durability_loss_per_km: 0.018
+  cleanliness: 100
+  cleanliness_loss_per_km: 0.035
+  offline_efficiency: 0.60
+  weather_resistance: 0.15
+  default_skin_id: skin_van_blue_default
+  upgrade_curve_key: default_v1

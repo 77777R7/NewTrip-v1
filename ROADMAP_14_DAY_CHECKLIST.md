@@ -37,28 +37,28 @@ Goal: turn the repo from a documentation handoff into a runnable project repo.
 
 Backend:
 
-- [ ] Create NestJS backend under `apps/backend/`.
-- [ ] Add `apps/backend/src/main.ts`.
-- [ ] Add `apps/backend/src/app.module.ts`.
-- [ ] Add `apps/backend/src/health/`.
-- [ ] Add `apps/backend/src/config/`.
-- [ ] Add `apps/backend/src/database/`.
-- [ ] Add `npm run dev`.
-- [ ] Add `npm run test`.
-- [ ] Add `npm run build`.
-- [ ] Add `GET /health` returning OK.
+- [x] Create NestJS backend under `apps/backend/`.
+- [x] Add `apps/backend/src/main.ts`.
+- [x] Add `apps/backend/src/app.module.ts`.
+- [x] Add `apps/backend/src/health/`.
+- [x] Add `apps/backend/src/config/`.
+- [x] Add `apps/backend/src/database/`.
+- [x] Add `npm run dev`.
+- [x] Add `npm run test`.
+- [x] Add `npm run build`.
+- [x] Add `GET /health` returning OK.
 
 Environment:
 
-- [ ] Add `.env.example` with `DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_JWT_SECRET`, `REDIS_URL`, `NODE_ENV`, and `PORT`.
+- [x] Add `.env.example` with `DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_JWT_SECRET`, `REDIS_URL`, `NODE_ENV`, and `PORT`.
 
 Database/config:
 
-- [ ] Create `supabase/migrations/`.
-- [ ] Create `supabase/seed.sql`.
+- [x] Create `supabase/migrations/`.
+- [x] Create `supabase/seed.sql`.
 - [x] Keep `config/default_parameters.v1.yaml` readable and multi-line.
-- [ ] Add `config/tutorial_route.v1.yaml`.
-- [ ] Add `config/default_vehicle.v1.yaml`.
+- [x] Add `config/tutorial_route.v1.yaml`.
+- [x] Add `config/default_vehicle.v1.yaml`.
 
 Docs/ADRs:
 
@@ -69,19 +69,19 @@ Docs/ADRs:
 
 Acceptance:
 
-- [ ] Fresh clone can run `npm install`.
-- [ ] `npm run dev` starts the backend.
-- [ ] `GET /health` returns OK.
-- [ ] `.env.example` exists.
-- [ ] Supabase migration directory exists.
-- [ ] Default YAML config files are readable.
+- [x] Fresh clone can run `npm install`.
+- [x] `npm run dev` starts the backend.
+- [x] `GET /health` returns OK.
+- [x] `.env.example` exists.
+- [x] Supabase migration directory exists.
+- [x] Default YAML config files are readable.
 
 Do not do:
 
-- [ ] No Gacha.
-- [ ] No Unity art.
-- [ ] No real map.
-- [ ] No complex Admin Panel.
+- [x] No Gacha.
+- [x] No Unity art.
+- [x] No real map.
+- [x] No complex Admin Panel.
 
 ## Day 2: Database Base Tables And Seed Data
 
@@ -668,3 +668,4 @@ Trip Simulation Engine
 - 2026-05-16: Created public GitHub repository `NewTrip-v1`, preserved PDF, extracted docs, and created initial implementation handoff.
 - 2026-05-16: Added two-week roadmap, agent rules, domain context, issue-tracker config, triage labels, and `mattpocock/skills` fit review.
 - 2026-05-16: Replaced the roadmap with the user-provided 14-day playable spine plan and stack assumptions.
+- 2026-05-16: Completed Day 1 backend skeleton: NestJS workspace, health endpoint, env example, Supabase folders, tutorial/default vehicle YAML, and test/build/dev verification.

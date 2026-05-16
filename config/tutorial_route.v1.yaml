@@ -1,0 +1,47 @@
+route:
+  route_key: tutorial_coast_001
+  name: "Bay Town to Lighthouse Road"
+  route_type: Tutorial
+  total_distance_km: 100
+  difficulty: 1
+  unlock_cost_stamps: 0
+  trip_prep_fee_coins: 0
+  reward_multiplier: 1.0
+  weather_profile_key: coast_easy
+  day_night_profile_key: default_day
+  background_pack_id: bg_coast_pixel_v1
+
+segments:
+  - index: 0
+    start_km: 0
+    end_km: 34
+    terrain: coast
+    speed_multiplier: 1.0
+    fuel_multiplier: 1.0
+    cleanliness_multiplier: 1.0
+    durability_multiplier: 1.0
+  - index: 1
+    start_km: 34
+    end_km: 70
+    terrain: forest
+    speed_multiplier: 0.92
+    fuel_multiplier: 1.0
+    cleanliness_multiplier: 1.08
+    durability_multiplier: 1.02
+  - index: 2
+    start_km: 70
+    end_km: 100
+    terrain: highway
+    speed_multiplier: 1.08
+    fuel_multiplier: 0.95
+    cleanliness_multiplier: 0.95
+    durability_multiplier: 0.95
+
+landmarks:
+  - landmark_key: first_lighthouse
+    name: "First Lighthouse"
+    distance_km: 40
+    required_stop: true
+    rarity: Common
+    base_photo_coins: 80
+    photo_card_key: photo_first_lighthouse_v1

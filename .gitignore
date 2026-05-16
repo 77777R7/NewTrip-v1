@@ -2,8 +2,12 @@ analysis/
 .DS_Store
 node_modules/
 dist/
+**/dist/
 build/
+**/build/
 coverage/
+**/coverage/
+*.tsbuildinfo
 .env
 .env.*
 !.env.example

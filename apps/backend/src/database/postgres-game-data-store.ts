@@ -5,10 +5,16 @@ import {
   AuthIdentity,
   CURRENCIES,
   Currency,
+  AbandonTripInput,
   GameDataStore,
+  Landmark,
   PlayerProfile,
   PlayerState,
   PlayerVehicle,
+  RouteDefinition,
+  RouteSegment,
+  StartTripInput,
+  Trip,
   WalletBalance,
   WalletMutationInput,
   WalletTransaction,
@@ -81,6 +87,284 @@ export class PostgresGameDataStore implements GameDataStore, OnModuleDestroy {
       throw new Error('Spend amount must be positive');
     }
     return this.mutateWallet(input, -input.amount);
+  }
+
+  async getAvailableRoutes(identity: AuthIdentity): Promise<RouteDefinition[]> {
+    const state = await this.getOrCreatePlayerState(identity);
+    if (!this.hasFullRouteAccess(state.profile)) {
+      const tutorialRoute = await this.pool.query(
+        `
+          select rd.*, true as is_unlocked
+          from public.route_definitions rd
+          join public.config_versions cv on cv.config_version_id = rd.config_version_id
+          where cv.status = 'LIVE' and rd.route_type = 'Tutorial' and rd.is_active = true
+          order by rd.created_at asc
+        `,
+      );
+      return tutorialRoute.rows.map((row) => this.toRouteDefinition(row));
+    }
+
+    const routes = await this.pool.query(
+      `
+        select
+          rd.*,
+          (rd.route_type = 'Tutorial' or pur.player_id is not null) as is_unlocked
+        from public.route_definitions rd
+        join public.config_versions cv on cv.config_version_id = rd.config_version_id
+        left join public.player_unlocked_routes pur
+          on pur.route_id = rd.route_id and pur.player_id = $1
+        where cv.status = 'LIVE'
+          and rd.is_active = true
+          and (rd.route_type = 'Tutorial' or pur.player_id is not null)
+        order by rd.difficulty asc, rd.total_distance_km asc
+      `,
+      [state.profile.playerId],
+    );
+
+    return routes.rows.map((row) => this.toRouteDefinition(row));
+  }
+
+  async getRoute(identity: AuthIdentity, routeId: string): Promise<RouteDefinition | null> {
+    const state = await this.getOrCreatePlayerState(identity);
+    const route = await this.pool.query(
+      `
+        select
+          rd.*,
+          (rd.route_type = 'Tutorial' or pur.player_id is not null) as is_unlocked
+        from public.route_definitions rd
+        join public.config_versions cv on cv.config_version_id = rd.config_version_id
+        left join public.player_unlocked_routes pur
+          on pur.route_id = rd.route_id and pur.player_id = $1
+        where cv.status = 'LIVE'
+          and rd.is_active = true
+          and (rd.route_id::text = $2 or rd.route_key = $2)
+        limit 1
+      `,
+      [state.profile.playerId, routeId],
+    );
+
+    if (!route.rowCount) {
+      return null;
+    }
+
+    return this.loadRouteDetails(this.toRouteDefinition(route.rows[0]));
+  }
+
+  async getCurrentTrip(identity: AuthIdentity): Promise<Trip | null> {
+    const state = await this.getOrCreatePlayerState(identity);
+    const trip = await this.pool.query(
+      `
+        select *
+        from public.player_trips
+        where player_id = $1 and status in ('ACTIVE', 'PAUSED', 'FORCED_STOP')
+        order by started_at desc
+        limit 1
+      `,
+      [state.profile.playerId],
+    );
+
+    if (!trip.rowCount) {
+      return null;
+    }
+
+    return this.tripWithRoute(this.toTrip(trip.rows[0]), state.profile.playerId);
+  }
+
+  async startTrip(identity: AuthIdentity, input: StartTripInput): Promise<Trip> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('begin');
+      const profile = await this.getOrCreatePlayerProfileInTransaction(client, identity);
+      await this.ensurePlayerDefaultsInTransaction(client, profile.playerId);
+
+      const existingForKey = await client.query(
+        `
+          select *
+          from public.player_trips
+          where player_id = $1 and metadata->>'start_idempotency_key' = $2
+          limit 1
+        `,
+        [profile.playerId, input.idempotencyKey],
+      );
+      if (existingForKey.rowCount) {
+        await client.query('commit');
+        return this.tripWithRoute(this.toTrip(existingForKey.rows[0]), profile.playerId);
+      }
+
+      const activeTrip = await client.query(
+        `
+          select trip_id
+          from public.player_trips
+          where player_id = $1 and status in ('ACTIVE', 'PAUSED', 'FORCED_STOP')
+          limit 1
+        `,
+        [profile.playerId],
+      );
+      if (activeTrip.rowCount) {
+        throw new Error('ACTIVE_TRIP_EXISTS');
+      }
+
+      const routeResult = await client.query(
+        `
+          select
+            rd.*,
+            (rd.route_type = 'Tutorial' or pur.player_id is not null) as is_unlocked
+          from public.route_definitions rd
+          join public.config_versions cv on cv.config_version_id = rd.config_version_id
+          left join public.player_unlocked_routes pur
+            on pur.route_id = rd.route_id and pur.player_id = $1
+          where cv.status = 'LIVE'
+            and rd.is_active = true
+            and (rd.route_id::text = $2 or rd.route_key = $2)
+          limit 1
+        `,
+        [profile.playerId, input.routeId],
+      );
+      if (!routeResult.rowCount) {
+        throw new Error('ROUTE_NOT_FOUND');
+      }
+
+      const route = this.toRouteDefinition(routeResult.rows[0]);
+      if (route.routeType !== 'Tutorial' && !route.isUnlocked) {
+        throw new Error('ROUTE_LOCKED');
+      }
+
+      const vehicleResult = await client.query(
+        `
+          select *
+          from public.player_vehicles
+          where player_id = $1
+            and (
+              ($2::uuid is not null and player_vehicle_id = $2::uuid)
+              or ($2::uuid is null and is_selected = true)
+            )
+          for update
+        `,
+        [profile.playerId, input.playerVehicleId ?? null],
+      );
+      if (!vehicleResult.rowCount) {
+        throw new Error('VEHICLE_NOT_FOUND');
+      }
+
+      const tripResult = await client.query(
+        `
+          insert into public.player_trips (
+            player_id,
+            route_id,
+            route_config_version,
+            player_vehicle_id,
+            status,
+            current_distance_km,
+            last_simulated_at,
+            metadata
+          )
+          values ($1, $2, $3, $4, 'ACTIVE', 0, now(), jsonb_build_object('start_idempotency_key', $5))
+          returning *
+        `,
+        [profile.playerId, route.routeId, route.configVersionId, vehicleResult.rows[0].player_vehicle_id, input.idempotencyKey],
+      );
+
+      await client.query(
+        `
+          update public.player_vehicles
+          set locked_in_trip_id = $2, version = version + 1
+          where player_vehicle_id = $1
+        `,
+        [vehicleResult.rows[0].player_vehicle_id, tripResult.rows[0].trip_id],
+      );
+
+      if (profile.tutorialState === 'NOT_STARTED' && route.routeType === 'Tutorial') {
+        await client.query(
+          `
+            update public.players
+            set tutorial_state = 'ROUTE_SELECTED', updated_at = now()
+            where player_id = $1
+          `,
+          [profile.playerId],
+        );
+      }
+
+      await client.query('commit');
+      return this.tripWithRoute(this.toTrip(tripResult.rows[0]), profile.playerId);
+    } catch (error) {
+      await client.query('rollback');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async abandonTrip(identity: AuthIdentity, input: AbandonTripInput): Promise<Trip> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('begin');
+      const profile = await this.getOrCreatePlayerProfileInTransaction(client, identity);
+      const existingForKey = await client.query(
+        `
+          select *
+          from public.player_trips
+          where player_id = $1 and metadata->>'abandon_idempotency_key' = $2
+          limit 1
+        `,
+        [profile.playerId, input.idempotencyKey],
+      );
+      if (existingForKey.rowCount) {
+        await client.query('commit');
+        return this.tripWithRoute(this.toTrip(existingForKey.rows[0]), profile.playerId);
+      }
+
+      const tripResult = await client.query(
+        `
+          select *
+          from public.player_trips
+          where player_id = $1
+            and ($2::uuid is null or trip_id = $2::uuid)
+            and status in ('ACTIVE', 'PAUSED', 'FORCED_STOP')
+          order by started_at desc
+          limit 1
+          for update
+        `,
+        [profile.playerId, input.tripId ?? null],
+      );
+      if (!tripResult.rowCount) {
+        throw new Error('ACTIVE_TRIP_NOT_FOUND');
+      }
+
+      const trip = tripResult.rows[0];
+      await client.query(
+        `
+          update public.player_trips
+          set status = 'ABANDONED',
+              metadata = metadata || jsonb_build_object('abandon_idempotency_key', $2)
+          where trip_id = $1
+          returning *
+        `,
+        [trip.trip_id, input.idempotencyKey],
+      );
+      await client.query(
+        `
+          update public.player_vehicles
+          set locked_in_trip_id = null, version = version + 1
+          where player_vehicle_id = $1 and locked_in_trip_id = $2
+        `,
+        [trip.player_vehicle_id, trip.trip_id],
+      );
+
+      await client.query('commit');
+      return this.tripWithRoute(this.toTrip({
+        ...trip,
+        status: 'ABANDONED',
+        metadata: {
+          ...(trip.metadata ?? {}),
+          abandon_idempotency_key: input.idempotencyKey,
+        },
+      }), profile.playerId);
+    } catch (error) {
+      await client.query('rollback');
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 
   private async mutateWallet(input: WalletMutationInput, signedAmount: number): Promise<WalletTransaction> {
@@ -305,6 +589,65 @@ export class PostgresGameDataStore implements GameDataStore, OnModuleDestroy {
     };
   }
 
+  private async loadRouteDetails(route: RouteDefinition): Promise<RouteDefinition> {
+    const [segmentsResult, landmarksResult] = await Promise.all([
+      this.pool.query(
+        `
+          select *
+          from public.route_segments
+          where route_id = $1
+          order by segment_index asc
+        `,
+        [route.routeId],
+      ),
+      this.pool.query(
+        `
+          select *
+          from public.landmarks
+          where route_id = $1
+          order by distance_km asc
+        `,
+        [route.routeId],
+      ),
+    ]);
+
+    return {
+      ...route,
+      segments: segmentsResult.rows.map((row) => this.toRouteSegment(row)),
+      landmarks: landmarksResult.rows.map((row) => this.toLandmark(row)),
+    };
+  }
+
+  private async tripWithRoute(trip: Trip, playerId: string): Promise<Trip> {
+    const route = await this.getRouteForPlayer(playerId, trip.routeId);
+    return {
+      ...trip,
+      route: route ?? undefined,
+    };
+  }
+
+  private async getRouteForPlayer(playerId: string, routeId: string): Promise<RouteDefinition | null> {
+    const route = await this.pool.query(
+      `
+        select
+          rd.*,
+          (rd.route_type = 'Tutorial' or pur.player_id is not null) as is_unlocked
+        from public.route_definitions rd
+        left join public.player_unlocked_routes pur
+          on pur.route_id = rd.route_id and pur.player_id = $1
+        where rd.route_id = $2
+        limit 1
+      `,
+      [playerId, routeId],
+    );
+
+    return route.rowCount ? this.loadRouteDetails(this.toRouteDefinition(route.rows[0])) : null;
+  }
+
+  private hasFullRouteAccess(player: PlayerProfile): boolean {
+    return ['ROUTE_COMPLETED', 'FULL_SYSTEM_UNLOCKED'].includes(player.tutorialState);
+  }
+
   private toPlayerProfile(row: QueryResultRow): PlayerProfile {
     return {
       playerId: row.player_id,
@@ -338,6 +681,72 @@ export class PostgresGameDataStore implements GameDataStore, OnModuleDestroy {
       selectedSkinId: row.selected_skin_id,
       upgradeLevel: Number(row.upgrade_level),
       isSelected: Boolean(row.is_selected),
+    };
+  }
+
+  private toRouteDefinition(row: QueryResultRow): RouteDefinition {
+    return {
+      routeId: row.route_id,
+      configVersionId: row.config_version_id,
+      routeKey: row.route_key,
+      name: row.name,
+      region: row.region,
+      startNode: row.start_node,
+      destinationNode: row.destination_node,
+      routeType: row.route_type,
+      totalDistanceKm: Number(row.total_distance_km),
+      difficulty: Number(row.difficulty),
+      unlockCostStamps: Number(row.unlock_cost_stamps),
+      tripPrepFeeCoins: Number(row.trip_prep_fee_coins),
+      rewardMultiplier: Number(row.reward_multiplier),
+      backgroundPackId: row.background_pack_id,
+      isUnlocked: Boolean(row.is_unlocked),
+    };
+  }
+
+  private toRouteSegment(row: QueryResultRow): RouteSegment {
+    return {
+      segmentId: row.segment_id,
+      segmentIndex: Number(row.segment_index),
+      startKm: Number(row.start_km),
+      endKm: Number(row.end_km),
+      terrainType: row.terrain_type,
+      speedMultiplier: Number(row.speed_multiplier),
+      fuelMultiplier: Number(row.fuel_multiplier),
+      cleanlinessMultiplier: Number(row.cleanliness_multiplier),
+      durabilityMultiplier: Number(row.durability_multiplier),
+    };
+  }
+
+  private toLandmark(row: QueryResultRow): Landmark {
+    return {
+      landmarkId: row.landmark_id,
+      landmarkKey: row.landmark_key,
+      name: row.name,
+      distanceKm: Number(row.distance_km),
+      requiredStop: Boolean(row.required_stop),
+      rarity: row.rarity,
+      basePhotoCoins: Number(row.base_photo_coins),
+      photoCardKey: row.photo_card_key,
+    };
+  }
+
+  private toTrip(row: QueryResultRow): Trip {
+    return {
+      tripId: row.trip_id,
+      playerId: row.player_id,
+      routeId: row.route_id,
+      routeConfigVersion: row.route_config_version,
+      playerVehicleId: row.player_vehicle_id,
+      status: row.status,
+      currentDistanceKm: Number(row.current_distance_km),
+      elapsedRealSeconds: Number(row.elapsed_real_seconds),
+      onlineTokenMeterKm: Number(row.online_token_meter_km),
+      offlineTokenMeterKm: Number(row.offline_token_meter_km),
+      lastSimulatedAt: row.last_simulated_at.toISOString(),
+      startedAt: row.started_at.toISOString(),
+      completedAt: row.completed_at?.toISOString() ?? null,
+      forcedStopReason: row.forced_stop_reason,
     };
   }
 

@@ -190,35 +190,35 @@ Goal: player can see routes, choose a vehicle, and start the first tutorial trip
 
 Route service:
 
-- [ ] `GET /routes/available`.
-- [ ] `GET /routes/:route_id`.
-- [ ] `POST /routes/start`.
-- [ ] `POST /routes/abandon`.
+- [x] `GET /routes/available`.
+- [x] `GET /routes/:route_id`.
+- [x] `POST /routes/start`.
+- [x] `POST /routes/abandon`.
 
 Rules:
 
-- [ ] Tutorial incomplete players only see Tutorial Route.
-- [ ] Tutorial Route is free.
-- [ ] Non-Tutorial Route must already be unlocked.
-- [ ] Player cannot have two active trips.
-- [ ] Starting route locks `player_vehicle_id`.
+- [x] Tutorial incomplete players only see Tutorial Route.
+- [x] Tutorial Route is free.
+- [x] Non-Tutorial Route must already be unlocked.
+- [x] Player cannot have two active trips.
+- [x] Starting route locks `player_vehicle_id`.
 
 Trip service:
 
-- [ ] Create `player_trips`.
-- [ ] Set `status = ACTIVE`.
-- [ ] Set `current_distance_km = 0`.
-- [ ] Set `route_config_version = current LIVE config`.
-- [ ] Set `last_simulated_at = now()`.
-- [ ] Implement `GET /trip/current`.
+- [x] Create `player_trips`.
+- [x] Set `status = ACTIVE`.
+- [x] Set `current_distance_km = 0`.
+- [x] Set `route_config_version = current LIVE config`.
+- [x] Set `last_simulated_at = now()`.
+- [x] Implement `GET /trip/current`.
 
 Acceptance:
 
-- [ ] `/routes/available` returns Tutorial Route.
-- [ ] `/routes/start` creates active trip.
-- [ ] Second active route start fails.
-- [ ] Tutorial Route does not spend Stamps or Trip Prep Fee.
-- [ ] `/trip/current` returns current trip.
+- [x] `/routes/available` returns Tutorial Route.
+- [x] `/routes/start` creates active trip.
+- [x] Second active route start fails.
+- [x] Tutorial Route does not spend Stamps or Trip Prep Fee.
+- [x] `/trip/current` returns current trip.
 
 ## Day 5: Trip Simulation Engine Pure Functions
 
@@ -672,3 +672,4 @@ Trip Simulation Engine
 - 2026-05-16: Added Day 2 Supabase base schema migration, seed data, config validation, and DB smoke checks.
 - 2026-05-16: Completed Day 2 Supabase remote setup for project `NewTrip-v1`: MCP access verified, migrations applied, seed rows confirmed, and foreign-key index advisor findings resolved.
 - 2026-05-16: Completed Day 3 player/auth/wallet initialization slice with temporary anonymous auth headers, `/player/profile`, `/player/state`, default wallet/vehicle creation, and wallet idempotency tests.
+- 2026-05-16: Completed Day 4 route/trip slice: available/detail routes, start tutorial trip, current trip, abandon trip, selected vehicle locking, and active-trip prevention.

@@ -89,62 +89,62 @@ Goal: create the minimum database structure so the backend can create players, v
 
 Migrations:
 
-- [ ] `config_versions`.
-- [ ] `players`.
-- [ ] `wallet_balances`.
-- [ ] `wallet_transactions`.
-- [ ] `vehicle_definitions`.
-- [ ] `player_vehicles`.
-- [ ] `weather_profiles`.
-- [ ] `route_definitions`.
-- [ ] `route_segments`.
-- [ ] `landmarks`.
-- [ ] `player_unlocked_routes`.
-- [ ] `player_trips`.
+- [x] `config_versions`.
+- [x] `players`.
+- [x] `wallet_balances`.
+- [x] `wallet_transactions`.
+- [x] `vehicle_definitions`.
+- [x] `player_vehicles`.
+- [x] `weather_profiles`.
+- [x] `route_definitions`.
+- [x] `route_segments`.
+- [x] `landmarks`.
+- [x] `player_unlocked_routes`.
+- [x] `player_trips`.
 
 Do not build yet:
 
-- [ ] No gacha tables.
-- [ ] No daily quest tables.
-- [ ] No advanced admin tables.
-- [ ] No `migration_log`.
+- [x] No gacha tables.
+- [x] No daily quest tables.
+- [x] No advanced admin tables.
+- [x] No `migration_log`.
 
 Seed data:
 
-- [ ] One LIVE `config_version`.
-- [ ] One default vehicle.
-- [ ] One Tutorial Route.
-- [ ] One Short Route.
-- [ ] One weather profile.
-- [ ] Three Tutorial Route segments covering 0-100 km.
-- [ ] One required landmark at 40 km.
+- [x] One LIVE `config_version`.
+- [x] One default vehicle.
+- [x] One Tutorial Route.
+- [x] One Short Route.
+- [x] One weather profile.
+- [x] Three Tutorial Route segments covering 0-100 km.
+- [x] One required landmark at 40 km.
 
 Tutorial Route defaults:
 
-- [ ] `route_type = Tutorial`.
-- [ ] `total_distance_km = 100`.
-- [ ] `trip_prep_fee = 0`.
-- [ ] `unlock_cost_stamps = 0`.
-- [ ] First landmark at 40 km.
+- [x] `route_type = Tutorial`.
+- [x] `total_distance_km = 100`.
+- [x] `trip_prep_fee = 0`.
+- [x] `unlock_cost_stamps = 0`.
+- [x] First landmark at 40 km.
 
 Default vehicle:
 
-- [ ] `base_speed_kmph = 72`.
-- [ ] `fuel_capacity = 45`.
-- [ ] `fuel_consumption_per_km = 0.075`.
-- [ ] `cleanliness_loss_per_km = 0.035`.
-- [ ] `durability_loss_per_km = 0.018`.
-- [ ] `offline_efficiency = 0.60`.
+- [x] `base_speed_kmph = 72`.
+- [x] `fuel_capacity = 45`.
+- [x] `fuel_consumption_per_km = 0.075`.
+- [x] `cleanliness_loss_per_km = 0.035`.
+- [x] `durability_loss_per_km = 0.018`.
+- [x] `offline_efficiency = 0.60`.
 
 Acceptance:
 
-- [ ] Supabase migration runs.
-- [ ] `seed.sql` inserts default config.
-- [ ] Route segments continuously cover 0-100 km.
-- [ ] Landmark distance is in route range.
-- [ ] Tutorial Route is free.
-- [ ] Short Route costs 1-2 Stamps.
-- [ ] `npm run db:smoke` verifies LIVE config, default vehicle, Tutorial Route, and first landmark.
+- [!] Supabase migration runs. Local Docker/Postgres is not running and Supabase CLI is not logged in yet.
+- [x] `seed.sql` inserts default config.
+- [x] Route segments continuously cover 0-100 km.
+- [x] Landmark distance is in route range.
+- [x] Tutorial Route is free.
+- [x] Short Route costs 1-2 Stamps.
+- [x] `npm run db:smoke` verifies LIVE config, default vehicle, Tutorial Route, and first landmark.
 
 ## Day 3: Player, Auth, And Wallet Initialization
 
@@ -669,3 +669,4 @@ Trip Simulation Engine
 - 2026-05-16: Added two-week roadmap, agent rules, domain context, issue-tracker config, triage labels, and `mattpocock/skills` fit review.
 - 2026-05-16: Replaced the roadmap with the user-provided 14-day playable spine plan and stack assumptions.
 - 2026-05-16: Completed Day 1 backend skeleton: NestJS workspace, health endpoint, env example, Supabase folders, tutorial/default vehicle YAML, and test/build/dev verification.
+- 2026-05-16: Added Day 2 Supabase base schema migration, seed data, config validation, and DB smoke checks; remote Supabase project creation is blocked until CLI/plugin auth is available.

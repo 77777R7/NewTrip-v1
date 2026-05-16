@@ -8,6 +8,7 @@ build/
 coverage/
 **/coverage/
 *.tsbuildinfo
+supabase/.temp/
 .env
 .env.*
 !.env.example

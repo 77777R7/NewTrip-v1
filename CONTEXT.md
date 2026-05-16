@@ -2,6 +2,29 @@
 
 NewTrip V1 is the working repo for **旅游模拟器 / Travel Simulator V1**.
 
+## Stack
+
+**Game Client**  
+Unity + C#.
+
+**Backend**  
+Node.js + NestJS + TypeScript.
+
+**Database**  
+Supabase PostgreSQL.
+
+**Auth**  
+Supabase Auth or temporary anonymous auth during the playable-spine phase.
+
+**Cache**  
+Redis is allowed after Day 10. Before that, prefer database-backed idempotency so the P0 loop is not blocked on cache setup.
+
+**Admin**  
+Start with SQL seed/config files and config validation scripts. Retool or a full Admin UI belongs later.
+
+**Analytics**  
+Write `analytics_events` first. Firebase/PostHog can be integrated later.
+
 ## Domain Language
 
 **Travel Simulator**  
@@ -71,4 +94,3 @@ The player should want to:
 6. Unlock the next route.
 
 Everything in V1 should support that loop.
-

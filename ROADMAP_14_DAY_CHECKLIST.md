@@ -673,3 +673,4 @@ Trip Simulation Engine
 - 2026-05-16: Completed Day 2 Supabase remote setup for project `NewTrip-v1`: MCP access verified, migrations applied, seed rows confirmed, and foreign-key index advisor findings resolved.
 - 2026-05-16: Completed Day 3 player/auth/wallet initialization slice with temporary anonymous auth headers, `/player/profile`, `/player/state`, default wallet/vehicle creation, and wallet idempotency tests.
 - 2026-05-16: Completed Day 4 route/trip slice: available/detail routes, start tutorial trip, current trip, abandon trip, selected vehicle locking, and active-trip prevention.
+- 2026-05-16: Added ComfyUI batch-generation workflow docs for the pseudo-3D pixel-art route style, including art bible, prompt library, manifest, workflow template, and approved Big Sur style reference.

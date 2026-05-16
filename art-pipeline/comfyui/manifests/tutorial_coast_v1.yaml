@@ -1,0 +1,114 @@
+route_id: tutorial_coast_001
+route_visual_pack: tutorial_coast_v1
+style_version: newtrip_pixel_pseudo3d_v1
+status: draft
+
+source_reference:
+  path: assets/art/reference/newtrip_style_reference_big_sur_pseudo3d_v1.png
+  role: approved_style_and_composition_reference
+
+workflow:
+  template: art-pipeline/comfyui/workflows/newtrip_pseudo3d_base_workflow.template.json
+  comfyui_status: requires_local_model_paths
+  required_controls:
+    - style_reference_image
+    - perspective_guide_for_road_layers
+    - fixed_seed_per_asset
+
+recommended_generation_settings:
+  aspect_ratio: "9:16"
+  draft_resolution: "1024x1792"
+  final_source_resolution: "1536x2688"
+  sampler: keep_fixed_per_batch
+  steps: 28-40
+  cfg: 5-8
+  output_format: png
+
+unity_target:
+  platform: ios
+  orientation: portrait
+  texture_compression: ASTC
+  atlas_policy: route_pack_sprite_atlas
+  runtime_generation: false
+
+assets:
+  - asset_id: tutorial_coast_road_base_001
+    layer_type: road_base
+    seed: 18422017
+    status: todo
+    output_path: assets/art/source/tutorial_coast_v1/layers/tutorial_coast_road_base_001_approved.png
+    acceptance:
+      - straight road
+      - center vanishing point
+      - lower center clear for vehicle
+      - top safe area usable for HUD
+
+  - asset_id: tutorial_coast_sky_far_001
+    layer_type: sky_far
+    seed: 18422018
+    status: todo
+    output_path: assets/art/source/tutorial_coast_v1/layers/tutorial_coast_sky_far_001_approved.png
+    acceptance:
+      - warm sunset gradient
+      - low visual noise near HUD area
+      - no road or UI
+
+  - asset_id: tutorial_coast_far_landscape_001
+    layer_type: far_landscape
+    seed: 18422019
+    status: todo
+    output_path: assets/art/source/tutorial_coast_v1/layers/tutorial_coast_far_landscape_001_approved.png
+    acceptance:
+      - mountains ocean horizon bridge silhouette
+      - consistent palette
+      - no foreground clutter
+
+  - asset_id: tutorial_coast_mid_landscape_001
+    layer_type: mid_landscape
+    seed: 18422020
+    status: todo
+    output_path: assets/art/source/tutorial_coast_v1/layers/tutorial_coast_mid_landscape_001_approved.png
+    acceptance:
+      - cliffs and ocean are readable
+      - road center remains open
+      - matches road perspective
+
+  - asset_id: tutorial_coast_roadside_left_001
+    layer_type: roadside_left
+    seed: 18422021
+    status: todo
+    output_path: assets/art/source/tutorial_coast_v1/layers/tutorial_coast_roadside_left_001_approved.png
+    acceptance:
+      - left shoulder assets match perspective
+      - no readable text
+      - usable as overlay layer
+
+  - asset_id: tutorial_coast_guardrail_right_001
+    layer_type: roadside_right
+    seed: 18422022
+    status: todo
+    output_path: assets/art/source/tutorial_coast_v1/layers/tutorial_coast_guardrail_right_001_approved.png
+    acceptance:
+      - guardrail follows road perspective
+      - no car or UI
+      - clean isolated silhouette
+
+  - asset_id: tutorial_coast_bridge_landmark_001
+    layer_type: landmark_billboard
+    seed: 18422023
+    status: todo
+    output_path: assets/art/source/tutorial_coast_v1/landmarks/tutorial_coast_bridge_landmark_001_approved.png
+    acceptance:
+      - bridge recognizable at mobile size
+      - no text
+      - works as forced-stop/photo target
+
+  - asset_id: tutorial_coast_vehicle_compact_001
+    layer_type: vehicle_sprite
+    seed: 18422024
+    status: todo
+    output_path: assets/art/source/tutorial_coast_v1/props/tutorial_coast_vehicle_compact_001_approved.png
+    acceptance:
+      - rear-view car matches camera
+      - readable at mobile size
+      - does not use licensed brand marks

@@ -1,0 +1,99 @@
+style_version: newtrip_pixel_pseudo3d_v1
+reference_image: assets/art/reference/newtrip_style_reference_big_sur_pseudo3d_v1.png
+
+style_lock: >-
+  Premium 16-bit pixel art mobile road-trip game asset, crisp pixel shading,
+  warm cinematic lighting, clean readable silhouettes, rich but controlled
+  pixel detail, polished retro mobile game quality, no photorealism, no anime,
+  no blurry edges, no messy low-resolution pixels.
+
+camera_lock: >-
+  Portrait 9:16 mobile composition, straight pseudo-3D forward-driving
+  perspective, center vanishing point near upper-middle, camera slightly
+  elevated behind the player vehicle position, road begins wide at the bottom
+  edge and narrows toward the horizon, lower center reserved for a car sprite,
+  top 14 percent calm enough for HUD overlay.
+
+route_context: >-
+  Big Sur California Highway 1 at sunset, ocean on the right, orange-brown
+  rocky cliffs and evergreen pine trees on the left, layered purple mountains,
+  metal guardrail, rocky coastline, deep blue ocean with pixelated waves and
+  golden sunset reflections, distant arched coastal bridge near the right
+  horizon, warm orange pink purple sky.
+
+global_negative: >-
+  curved road, side-scrolling view, HUD, UI, bottom buttons, car, extra cars,
+  pedestrians, GPS navigation, racing interface, photorealistic render, anime,
+  distorted perspective, unreadable sign text, watermark, logo, blurry image,
+  noisy messy pixels.
+
+layers:
+  - asset_id: tutorial_coast_road_base_001
+    layer_type: road_base
+    seed: 18422017
+    prompt: >-
+      Generate only the gameplay road base layer. A long straight two-lane
+      asphalt highway begins wide at the bottom foreground and stretches
+      directly toward the center horizon vanishing point. Strong converging
+      road edges, double yellow center lines, readable asphalt pixel texture,
+      warm sunset shadows. Keep shoulders simple enough for separate roadside
+      props. No car, no UI, no signs, no text.
+
+  - asset_id: tutorial_coast_sky_far_001
+    layer_type: sky_far
+    seed: 18422018
+    prompt: >-
+      Generate only the far sky layer. Warm orange pink purple sunset gradient,
+      pixelated clouds, large low sun near the right horizon, a few tiny birds,
+      calm top area for HUD overlay. No road, no car, no UI, no text.
+
+  - asset_id: tutorial_coast_far_landscape_001
+    layer_type: far_landscape
+    seed: 18422019
+    prompt: >-
+      Generate only the far landscape layer. Distant layered purple mountains,
+      ocean horizon on the right, distant arched coastal bridge near the right
+      horizon, atmospheric depth, warm sunset lighting. No road foreground,
+      no car, no UI, no text.
+
+  - asset_id: tutorial_coast_mid_landscape_001
+    layer_type: mid_landscape
+    seed: 18422020
+    prompt: >-
+      Generate only the middle landscape layer. Orange-brown Big Sur cliffs and
+      evergreen pine trees on the left, rocky coastline and deep blue ocean on
+      the right, pixelated waves and white foam, golden reflections. Leave the
+      road center open. No car, no UI, no text.
+
+  - asset_id: tutorial_coast_roadside_left_001
+    layer_type: roadside_left
+    seed: 18422021
+    prompt: >-
+      Generate only left-side roadside assets in the same perspective: cliff
+      face, pine trees, small flowers, road shoulder pieces. Chroma-key or
+      transparent-ready isolated layer. No readable text, no UI, no car.
+
+  - asset_id: tutorial_coast_guardrail_right_001
+    layer_type: roadside_right
+    seed: 18422022
+    prompt: >-
+      Generate only right-side roadside guardrail and small coast-edge rocks in
+      perspective, following the straight road toward the horizon. Transparent
+      or chroma-key-ready isolated layer. No UI, no car, no text.
+
+  - asset_id: tutorial_coast_bridge_landmark_001
+    layer_type: landmark_billboard
+    seed: 18422023
+    prompt: >-
+      Generate a landmark billboard asset for a distant Big Sur arched coastal
+      bridge at sunset, three-quarter perspective, readable silhouette, warm
+      rim light, transparent or chroma-key-ready. No UI, no car, no text.
+
+  - asset_id: tutorial_coast_vehicle_compact_001
+    layer_type: vehicle_sprite
+    seed: 18422024
+    prompt: >-
+      Generate a rear-view compact boxy road-trip car sprite for the player,
+      light beige or silver, red taillights, dark rear window, simple readable
+      pixel details, centered rear perspective matching the road camera.
+      Isolated on a flat chroma-key background, no road, no UI, no text.

@@ -152,37 +152,37 @@ Goal: a new player request creates save data, wallet balances, and default vehic
 
 Player service:
 
-- [ ] Implement `GET /player/profile`.
-- [ ] Implement `GET /player/state`.
-- [ ] Create player if missing.
-- [ ] Create default `wallet_balances`.
-- [ ] Create default `player_vehicles`.
-- [ ] Set `tutorial_state = NOT_STARTED`.
+- [x] Implement `GET /player/profile`.
+- [x] Implement `GET /player/state`.
+- [x] Create player if missing.
+- [x] Create default `wallet_balances`.
+- [x] Create default `player_vehicles`.
+- [x] Set `tutorial_state = NOT_STARTED`.
 
 Default wallet:
 
-- [ ] `ROAD_COINS = 0` or `500` after team decision.
-- [ ] `TRAVEL_TOKENS = 0`.
-- [ ] `SOUVENIR_STAMPS = 0`.
-- [ ] `STAMP_FRAGMENTS = 0`.
-- [ ] `BLUEPRINTS = 0`.
+- [x] `ROAD_COINS = 0` for Day 3.
+- [x] `TRAVEL_TOKENS = 0`.
+- [x] `SOUVENIR_STAMPS = 0`.
+- [x] `STAMP_FRAGMENTS = 0`.
+- [x] `BLUEPRINTS = 0`.
 
 Wallet service:
 
-- [ ] `wallet.getBalances(player_id)`.
-- [ ] `wallet.grant(...)`.
-- [ ] `wallet.spend(...)`.
-- [ ] Write `wallet_transactions` with reason, source, idempotency key, `balance_before`, and `balance_after`.
+- [x] `wallet.getBalances(player_id)`.
+- [x] `wallet.grant(...)`.
+- [x] `wallet.spend(...)`.
+- [x] Write `wallet_transactions` with reason, source, idempotency key, `balance_before`, and `balance_after`.
 
 Acceptance:
 
-- [ ] First `/player/state` initializes a new player.
-- [ ] Player has default vehicle.
-- [ ] Player has all five currency balances.
-- [ ] Wallet grant/spend writes transactions.
-- [ ] Balance cannot go negative.
-- [ ] Repeated player creation does not duplicate default vehicle.
-- [ ] Repeated wallet grant with same idempotency key does not double-pay.
+- [x] First `/player/state` initializes a new player.
+- [x] Player has default vehicle.
+- [x] Player has all five currency balances.
+- [x] Wallet grant/spend writes transactions.
+- [x] Balance cannot go negative.
+- [x] Repeated player creation does not duplicate default vehicle.
+- [x] Repeated wallet grant with same idempotency key does not double-pay.
 
 ## Day 4: Route API And Start Trip
 
@@ -671,3 +671,4 @@ Trip Simulation Engine
 - 2026-05-16: Completed Day 1 backend skeleton: NestJS workspace, health endpoint, env example, Supabase folders, tutorial/default vehicle YAML, and test/build/dev verification.
 - 2026-05-16: Added Day 2 Supabase base schema migration, seed data, config validation, and DB smoke checks.
 - 2026-05-16: Completed Day 2 Supabase remote setup for project `NewTrip-v1`: MCP access verified, migrations applied, seed rows confirmed, and foreign-key index advisor findings resolved.
+- 2026-05-16: Completed Day 3 player/auth/wallet initialization slice with temporary anonymous auth headers, `/player/profile`, `/player/state`, default wallet/vehicle creation, and wallet idempotency tests.

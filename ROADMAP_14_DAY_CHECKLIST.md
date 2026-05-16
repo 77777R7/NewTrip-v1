@@ -138,7 +138,7 @@ Default vehicle:
 
 Acceptance:
 
-- [!] Supabase migration runs. Local Docker/Postgres is not running and Supabase CLI is not logged in yet.
+- [x] Supabase migration runs.
 - [x] `seed.sql` inserts default config.
 - [x] Route segments continuously cover 0-100 km.
 - [x] Landmark distance is in route range.
@@ -669,4 +669,5 @@ Trip Simulation Engine
 - 2026-05-16: Added two-week roadmap, agent rules, domain context, issue-tracker config, triage labels, and `mattpocock/skills` fit review.
 - 2026-05-16: Replaced the roadmap with the user-provided 14-day playable spine plan and stack assumptions.
 - 2026-05-16: Completed Day 1 backend skeleton: NestJS workspace, health endpoint, env example, Supabase folders, tutorial/default vehicle YAML, and test/build/dev verification.
-- 2026-05-16: Added Day 2 Supabase base schema migration, seed data, config validation, and DB smoke checks; remote Supabase project creation is blocked until CLI/plugin auth is available.
+- 2026-05-16: Added Day 2 Supabase base schema migration, seed data, config validation, and DB smoke checks.
+- 2026-05-16: Completed Day 2 Supabase remote setup for project `NewTrip-v1`: MCP access verified, migrations applied, seed rows confirmed, and foreign-key index advisor findings resolved.

@@ -44,6 +44,17 @@ npm run build
 
 The Day 1 backend lives in `apps/backend/`. `GET /health` returns the minimal backend health payload.
 
+## Config Validation
+
+Before simulation or route-config work, run:
+
+```bash
+npm run config:validate-yaml
+npm run config:validate
+```
+
+`config:validate-yaml` parses all YAML under `config/` and `art-pipeline/comfyui/`. `config:validate` also checks the Tutorial Route, default vehicle, and Day 5 simulation defaults structurally.
+
 ## Non-Negotiable V1 Principles
 
 - Backend is authoritative for distance, time, rewards, offline progress, wallet changes, and gacha results.

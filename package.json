@@ -12,7 +12,8 @@
     "test": "npm run test -w @newtrip/backend",
     "test:e2e": "npm run test:e2e -w @newtrip/backend",
     "db:smoke": "npm run db:smoke -w @newtrip/backend",
-    "config:validate": "npm run config:validate -w @newtrip/backend"
+    "config:validate": "npm run config:validate -w @newtrip/backend",
+    "config:validate-yaml": "npm run config:validate-yaml -w @newtrip/backend"
   },
   "engines": {
     "node": ">=20.0.0"

@@ -61,17 +61,59 @@ maintenance:
   durability_fuel_penalty_max: 1.20
 
 weather_effects:
-  sunny: { speed: 1.00, fuel: 1.00, cleanliness: 1.00, durability: 1.00, photo: 1.05 }
-  cloudy: { speed: 0.98, fuel: 1.00, cleanliness: 1.02, durability: 1.00, photo: 1.00 }
-  rain: { speed: 0.92, fuel: 1.08, cleanliness: 1.40, durability: 1.08, photo: 0.95 }
-  fog: { speed: 0.88, fuel: 1.04, cleanliness: 1.08, durability: 1.03, photo: 1.10 }
-  snow: { speed: 0.80, fuel: 1.15, cleanliness: 1.25, durability: 1.18, photo: 1.08 }
-  sandstorm: { speed: 0.78, fuel: 1.18, cleanliness: 1.60, durability: 1.25, photo: 0.90 }
+  sunny:
+    speed: 1.00
+    fuel: 1.00
+    cleanliness: 1.00
+    durability: 1.00
+    photo: 1.05
+  cloudy:
+    speed: 0.98
+    fuel: 1.00
+    cleanliness: 1.02
+    durability: 1.00
+    photo: 1.00
+  rain:
+    speed: 0.92
+    fuel: 1.08
+    cleanliness: 1.40
+    durability: 1.08
+    photo: 0.95
+  fog:
+    speed: 0.88
+    fuel: 1.04
+    cleanliness: 1.08
+    durability: 1.03
+    photo: 1.10
+  snow:
+    speed: 0.80
+    fuel: 1.15
+    cleanliness: 1.25
+    durability: 1.18
+    photo: 1.08
+  sandstorm:
+    speed: 0.78
+    fuel: 1.18
+    cleanliness: 1.60
+    durability: 1.25
+    photo: 0.90
 
 terrain_effects:
-  highway: { speed: 1.08, fuel: 0.95, cleanliness: 0.95, durability: 0.95 }
-  mountain: { speed: 0.82, fuel: 1.20, cleanliness: 1.15, durability: 1.25 }
-  desert: { speed: 0.90, fuel: 1.12, cleanliness: 1.45, durability: 1.10 }
+  highway:
+    speed: 1.08
+    fuel: 0.95
+    cleanliness: 0.95
+    durability: 0.95
+  mountain:
+    speed: 0.82
+    fuel: 1.20
+    cleanliness: 1.15
+    durability: 1.25
+  desert:
+    speed: 0.90
+    fuel: 1.12
+    cleanliness: 1.45
+    durability: 1.10
 
 gacha:
   rates:
@@ -85,4 +127,3 @@ gacha:
     rare: 10
     epic: 30
     legendary: 80
-

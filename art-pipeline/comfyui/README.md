@@ -1,10 +1,18 @@
 # NewTrip ComfyUI Asset Pipeline
 
-This folder contains the repeatable batch generation setup for NewTrip route art.
+This folder contains the later repeatable batch generation setup for NewTrip route art. The current V1 default is ChatGPT Image 2.0-first; ComfyUI comes later when scale, fixed-seed control, ControlNet, IPAdapter, or LoRA becomes worth the setup cost.
 
 Mandatory contract: `../../docs/art/scene-pack-contract-v1.md`.
 
-Do not approve a generated image unless it has a scene-pack metadata entry, usage class, layer type, time preset, and contract-compliant filename.
+Do not approve any generated image, whether it came from ChatGPT Image 2.0 or ComfyUI, unless it has a scene-pack metadata entry, usage class, layer type, time preset, and contract-compliant filename.
+
+## Current Generator Policy
+
+```text
+Now: ChatGPT Image 2.0-first
+Later: ComfyUI / Leonardo production factory
+Always: scene-pack-contract-v1
+```
 
 ## First Test Batch
 

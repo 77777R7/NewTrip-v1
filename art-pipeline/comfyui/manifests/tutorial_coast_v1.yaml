@@ -9,7 +9,8 @@ source_reference:
 
 workflow:
   template: art-pipeline/comfyui/workflows/newtrip_pseudo3d_base_workflow.template.json
-  comfyui_status: requires_local_model_paths
+  current_policy: chatgpt_image_2_first
+  comfyui_status: later_repeatable_factory_requires_local_model_paths
   required_controls:
     - style_reference_image
     - perspective_guide_for_road_layers

@@ -20,6 +20,22 @@ For V1, produce a small California Highway 1 asset set with complete metadata. D
 
 Plan future regions through tags, naming, and metadata. Produce future content only when the playable spine needs it.
 
+## Current Generator Policy
+
+V1 uses a ChatGPT Image 2.0-first workflow for speed and taste iteration.
+
+```text
+Current default: ChatGPT Image 2.0-first
+Contract: mandatory for every generation
+Storage status: generated assets enter draft/review first
+Production scaling later: ComfyUI / Leonardo / LoRA
+Runtime generation: not allowed in the app
+```
+
+ComfyUI remains the later repeatable asset factory when the asset volume, seed control, LoRA training, or batch automation justifies it. Do not block V1 asset exploration on ComfyUI setup.
+
+Even when using ChatGPT Image 2.0 directly, every generated image must still declare scene pack type, usage class, layer type, time preset, naming, and metadata before it can become an approved asset.
+
 ## Scene Pack Types
 
 Every scene pack must declare one of these types:
@@ -204,11 +220,12 @@ compatible_weather:
   - light_cloud
   - light_fog
 generation:
-  tool: comfyui
-  workflow: art-pipeline/comfyui/workflows/newtrip_pseudo3d_base_workflow.template.json
+  tool: chatgpt_image_2
+  later_factory: comfyui_or_leonardo
+  workflow: docs/art/scene-pack-contract-v1.md
   style_reference: assets/art/reference/newtrip_style_reference_big_sur_pseudo3d_v1.png
   prompt_version: scene_pack_contract_v1
-  model: replace_with_actual_model_name
+  model: chatgpt_image_2_current
   seed_policy: fixed_per_asset
 layers:
   sky_horizon:

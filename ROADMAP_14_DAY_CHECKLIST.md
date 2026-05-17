@@ -676,3 +676,4 @@ Trip Simulation Engine
 - 2026-05-16: Added ComfyUI batch-generation workflow docs for the pseudo-3D pixel-art route style, including art bible, prompt library, manifest, workflow template, and approved Big Sur style reference.
 - 2026-05-16: Generated and archived first Tutorial Coast draft layer test outputs for sky, far ocean, lighthouse silhouettes, roadside grass, and road foreground; marked them as art-direction drafts, not production-complete Unity assets.
 - 2026-05-16: Added `docs/art/scene-pack-contract-v1.md` as the mandatory asset production contract and wired the art bible and ComfyUI workflow to require usage class, layer type, time preset, naming, and metadata for future generation.
+- 2026-05-16: Clarified art generation policy: V1 uses ChatGPT Image 2.0-first for fast draft exploration, while ComfyUI/Leonardo remain later repeatable production-factory options under the same scene-pack contract.

@@ -21,11 +21,13 @@ compatible_weather:
   - light_fog
 
 generation:
-  tool: comfyui
-  workflow: art-pipeline/comfyui/workflows/newtrip_pseudo3d_base_workflow.template.json
+  current_default_tool: chatgpt_image_2
+  later_factory: comfyui_or_leonardo
+  workflow: docs/art/scene-pack-contract-v1.md
+  optional_comfyui_workflow: art-pipeline/comfyui/workflows/newtrip_pseudo3d_base_workflow.template.json
   style_reference: assets/art/reference/newtrip_style_reference_big_sur_pseudo3d_v1.png
   prompt_version: scene_pack_contract_v1
-  model: replace_with_actual_model_name
+  model: chatgpt_image_2_current
   seed_policy: fixed_per_asset
   sampler: keep_fixed_per_batch
   resolution: "1024x1792"

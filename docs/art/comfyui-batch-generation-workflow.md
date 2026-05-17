@@ -1,12 +1,22 @@
 # ComfyUI Batch Generation Workflow
 
-This workflow turns the approved NewTrip style reference into repeatable route asset packs.
+This workflow is the later repeatable asset-factory path for NewTrip route art. V1 exploration is ChatGPT Image 2.0-first, with this ComfyUI path kept ready for scale, fixed seeds, ControlNet, IPAdapter, LoRA, and batch automation.
 
 All ComfyUI batches must follow `docs/art/scene-pack-contract-v1.md`. Do not generate or approve route art from a freeform prompt without a scene-pack type, usage class, layer type, time preset, naming pattern, and metadata entry.
 
+## Current Policy
+
+```text
+Now: ChatGPT Image 2.0-first for draft exploration and style approval.
+Later: ComfyUI / Leonardo for repeatable production batches.
+Always: scene-pack-contract-v1 metadata, naming, usage class, layer type, and time preset.
+```
+
+Do not block V1 on installing or tuning ComfyUI. Use ComfyUI when the team needs stronger repeatability than direct ChatGPT generation can provide.
+
 ## What ComfyUI Owns
 
-ComfyUI is the repeatable asset factory for:
+ComfyUI will own the repeatable asset factory for:
 
 - Same-style route background layers.
 - Road perspective base layers.

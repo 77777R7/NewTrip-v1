@@ -3,6 +3,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   parseYamlFile,
+  validateDefaultParametersConfig,
+  validateTutorialRouteConfig,
   validateWorkspaceConfigs,
   validateYamlFiles,
 } from './config-validate';
@@ -33,5 +35,37 @@ describe('config validation', () => {
         total_distance_km: 100,
       },
     });
+  });
+
+  it('fails when route segments are not continuous or landmarks leave the route range', () => {
+    const route = parseYamlFile('config/tutorial_route.v1.yaml') as {
+      segments: Array<{ start_km: number }>;
+      landmarks: Array<{ distance_km: number }>;
+    };
+
+    route.segments[1].start_km = 36;
+    expect(() => validateTutorialRouteConfig(route)).toThrow(/must start where previous segment ends/);
+
+    const routeWithBadLandmark = parseYamlFile('config/tutorial_route.v1.yaml') as {
+      landmarks: Array<{ distance_km: number }>;
+    };
+    routeWithBadLandmark.landmarks[0].distance_km = 120;
+    expect(() => validateTutorialRouteConfig(routeWithBadLandmark)).toThrow(/landmarks\[0\].distance_km must be inside route range/);
+  });
+
+  it('fails when economy or gacha config violates Day 12 rules', () => {
+    const config = parseYamlFile('config/default_parameters.v1.yaml') as {
+      economy: { online_coin_per_km: number };
+      gacha: { rates: { legendary: number } };
+    };
+
+    config.economy.online_coin_per_km = 4;
+    expect(() => validateDefaultParametersConfig(config)).toThrow(/offline_coin_per_km must be lower/);
+
+    const configWithBadGacha = parseYamlFile('config/default_parameters.v1.yaml') as {
+      gacha: { rates: { legendary: number } };
+    };
+    configWithBadGacha.gacha.rates.legendary = 2;
+    expect(() => validateDefaultParametersConfig(configWithBadGacha)).toThrow(/gacha rates must total 100/);
   });
 });

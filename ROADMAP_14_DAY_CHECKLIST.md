@@ -478,40 +478,40 @@ Goal: make config verifiable, behavior traceable, and suspicious behavior record
 
 Config validation:
 
-- [ ] Add `npm run config:validate`.
-- [ ] Validate route segments are continuous.
-- [ ] Validate landmarks are inside route range.
-- [ ] Validate Tutorial route is 80-120 km.
-- [ ] Validate Trip Prep Fee <= 300.
-- [ ] Validate gacha probability if present.
-- [ ] Validate `offline_coin_per_km < online_coin_per_km`.
+- [x] Add `npm run config:validate`.
+- [x] Validate route segments are continuous.
+- [x] Validate landmarks are inside route range.
+- [x] Validate Tutorial route is 80-120 km.
+- [x] Validate Trip Prep Fee <= 300.
+- [x] Validate gacha probability if present.
+- [x] Validate `offline_coin_per_km < online_coin_per_km`.
 
 Analytics events:
 
-- [ ] `tutorial_start`.
-- [ ] `auto_driving_unlocked`.
-- [ ] `photo_taken`.
-- [ ] `offline_report_generated`.
-- [ ] `offline_report_claimed`.
-- [ ] `route_completed`.
-- [ ] `wallet_currency_changed`.
-- [ ] `stopped_at_landmark`.
-- [ ] `stopped_low_fuel`.
+- [x] `tutorial_start`.
+- [x] `auto_driving_unlocked`.
+- [x] `photo_taken`.
+- [x] `offline_report_generated`.
+- [x] `offline_report_claimed`.
+- [x] `route_completed`.
+- [x] `wallet_currency_changed`.
+- [x] `stopped_at_landmark`.
+- [x] `stopped_low_fuel`.
 
 Risk events:
 
-- [ ] `INVALID_MODE`.
-- [ ] `TICK_RATE_LIMITED`.
-- [ ] `REWARD_DUPLICATE_ATTEMPT`.
-- [ ] `SPEED_LIMIT_EXCEEDED`.
+- [x] `INVALID_MODE`.
+- [x] `TICK_RATE_LIMITED`.
+- [x] `REWARD_DUPLICATE_ATTEMPT`.
+- [x] `SPEED_LIMIT_EXCEEDED`.
 
 Acceptance:
 
-- [ ] `config:validate` runs.
-- [ ] Bad route config fails.
-- [ ] Wallet changes write `wallet_currency_changed`.
-- [ ] Drive tick anomalies write `suspicious_events`.
-- [ ] Forced stops write analytics.
+- [x] `config:validate` runs.
+- [x] Bad route config fails.
+- [x] Wallet changes write `wallet_currency_changed`.
+- [x] Drive tick anomalies write `suspicious_events`.
+- [x] Forced stops write analytics.
 
 ## Day 13: Unity Thin Client Or Debug Web Client
 
@@ -690,3 +690,6 @@ Trip Simulation Engine
 - 2026-05-17: Completed Day 7 tutorial landmark/photo slice: tutorial state machine through `PHOTO_TAKEN`, Auto Driving unlock guard, `POST /trip/complete-landmark`, `player_photos`, first-photo wallet reward, and idempotent retry coverage.
 - 2026-05-17: Completed Day 8 offline Travel Report slice: `offline_reports`, `simulate_offline_progress`, pending reports from `/player/state`, claim-only wallet payout, duplicate pending-report prevention, idempotent claim retry, and Supabase migration verification.
 - 2026-05-17: Completed Day 9 vehicle maintenance slice: `POST /vehicle/refuel`, `/vehicle/clean`, `/vehicle/repair`, default price formulas, Road Coins spends through wallet ledger, idempotent maintenance actions, full-stat/insufficient-funds guards, and Supabase migration verification.
+- 2026-05-17: Completed Day 10 route completion/unlock slice: Big Sur tutorial completion rewards, required-landmark guard, Short Route unlock with Souvenir Stamps, Trip Prep Fee on unlocked route start, and Supabase migration verification.
+- 2026-05-17: Completed Day 11 daily-login and basic quest slice: `/daily-login`, `/quests/daily`, idempotent reward claims, five travel-loop quest events, wallet-ledger rewards, Day 7 weekly Stamp guard, and Supabase migration verification.
+- 2026-05-17: Completed Day 12 admin config/analytics/risk slice: stricter config validation, admin diagnostics read APIs, `wallet_currency_changed` and core travel analytics, `suspicious_events` logging for invalid modes, clamped ticks, duplicate reward attempts, and Supabase migration verification.

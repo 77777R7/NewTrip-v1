@@ -28,6 +28,21 @@ export class TripService {
         throw new Error('TRIP_ID_REQUIRED');
       }
       if (!['HOLD_TO_DRIVE', 'AUTO_DRIVING', 'HOLD_TO_BOOST'].includes(input.mode)) {
+        await this.recordSuspiciousBestEffort(identity, {
+          riskType: 'INVALID_MODE',
+          severity: 2,
+          sourceEndpoint: 'POST /trip/drive-tick',
+          tripId: input.tripId,
+          requestPayload: {
+            mode: input.mode,
+            client_tick_seq: input.clientTickSeq,
+            idempotency_key: input.idempotencyKey,
+          },
+          serverSnapshot: {
+            reason: 'INVALID_DRIVE_MODE',
+          },
+          actionTaken: 'REJECT',
+        });
         throw new Error('INVALID_DRIVE_MODE');
       }
       if (!input.idempotencyKey) {
@@ -36,6 +51,23 @@ export class TripService {
 
       return await this.gameDataStore.driveTick(identity, input);
     } catch (error) {
+      if (error instanceof Error && error.message === 'MODE_LOCKED') {
+        await this.recordSuspiciousBestEffort(identity, {
+          riskType: 'INVALID_MODE',
+          severity: 2,
+          sourceEndpoint: 'POST /trip/drive-tick',
+          tripId: input.tripId,
+          requestPayload: {
+            mode: input.mode,
+            client_tick_seq: input.clientTickSeq,
+            idempotency_key: input.idempotencyKey,
+          },
+          serverSnapshot: {
+            reason: 'MODE_LOCKED',
+          },
+          actionTaken: 'REJECT',
+        });
+      }
       throw this.toHttpError(error);
     }
   }
@@ -72,6 +104,21 @@ export class TripService {
 
       return await this.gameDataStore.claimOfflineReport(identity, input);
     } catch (error) {
+      if (error instanceof Error && error.message === 'REPORT_ALREADY_CLAIMED') {
+        await this.recordSuspiciousBestEffort(identity, {
+          riskType: 'REWARD_DUPLICATE_ATTEMPT',
+          severity: 3,
+          sourceEndpoint: 'POST /trip/claim-offline-report',
+          requestPayload: {
+            report_id: input.reportId,
+            idempotency_key: input.idempotencyKey,
+          },
+          serverSnapshot: {
+            reason: 'REPORT_ALREADY_CLAIMED',
+          },
+          actionTaken: 'REJECT',
+        });
+      }
       throw this.toHttpError(error);
     }
   }
@@ -87,7 +134,34 @@ export class TripService {
 
       return await this.gameDataStore.completeRoute(identity, input);
     } catch (error) {
+      if (error instanceof Error && error.message === 'ROUTE_ALREADY_COMPLETED') {
+        await this.recordSuspiciousBestEffort(identity, {
+          riskType: 'REWARD_DUPLICATE_ATTEMPT',
+          severity: 3,
+          sourceEndpoint: 'POST /trip/complete-route',
+          tripId: input.tripId,
+          requestPayload: {
+            trip_id: input.tripId,
+            idempotency_key: input.idempotencyKey,
+          },
+          serverSnapshot: {
+            reason: 'ROUTE_ALREADY_COMPLETED',
+          },
+          actionTaken: 'REJECT',
+        });
+      }
       throw this.toHttpError(error);
+    }
+  }
+
+  private async recordSuspiciousBestEffort(
+    identity: AuthIdentity,
+    input: Parameters<GameDataStore['recordSuspiciousEvent']>[1],
+  ): Promise<void> {
+    try {
+      await this.gameDataStore.recordSuspiciousEvent(identity, input);
+    } catch {
+      // Suspicious-event logging should never mask the gameplay error being returned.
     }
   }
 

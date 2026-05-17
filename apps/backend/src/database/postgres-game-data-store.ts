@@ -2,6 +2,7 @@ import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Pool, PoolClient, QueryResultRow } from 'pg';
 import {
+  AnalyticsEvent,
   AuthIdentity,
   CURRENCIES,
   Currency,
@@ -29,10 +30,12 @@ import {
   PlayerPhoto,
   PlayerState,
   PlayerVehicle,
+  RecordSuspiciousEventInput,
   RouteDefinition,
   RouteUnlockResult,
   RouteSegment,
   StartTripInput,
+  SuspiciousEvent,
   Trip,
   UnlockRouteInput,
   QuestEventName,
@@ -421,6 +424,73 @@ export class PostgresGameDataStore implements GameDataStore, OnModuleDestroy {
     }
   }
 
+  async getAnalyticsEvents(identity: AuthIdentity, limit = 100): Promise<AnalyticsEvent[]> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('begin');
+      const profile = await this.getOrCreatePlayerProfileInTransaction(client, identity);
+      const result = await client.query(
+        `
+          select *
+          from public.analytics_events
+          where player_id = $1
+          order by occurred_at asc
+          limit $2
+        `,
+        [profile.playerId, limit],
+      );
+      await client.query('commit');
+      return result.rows.map((row) => this.toAnalyticsEvent(row));
+    } catch (error) {
+      await client.query('rollback');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async getSuspiciousEvents(identity: AuthIdentity, limit = 100): Promise<SuspiciousEvent[]> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('begin');
+      const profile = await this.getOrCreatePlayerProfileInTransaction(client, identity);
+      const result = await client.query(
+        `
+          select *
+          from public.suspicious_events
+          where player_id = $1
+          order by created_at asc
+          limit $2
+        `,
+        [profile.playerId, limit],
+      );
+      await client.query('commit');
+      return result.rows.map((row) => this.toSuspiciousEvent(row));
+    } catch (error) {
+      await client.query('rollback');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async recordSuspiciousEvent(identity: AuthIdentity, input: RecordSuspiciousEventInput): Promise<SuspiciousEvent> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('begin');
+      const profile = await this.getOrCreatePlayerProfileInTransaction(client, identity);
+      await this.ensurePlayerDefaultsInTransaction(client, profile.playerId);
+      const event = await this.insertSuspiciousEventInTransaction(client, profile.playerId, input);
+      await client.query('commit');
+      return event;
+    } catch (error) {
+      await client.query('rollback');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
   async getAvailableRoutes(identity: AuthIdentity): Promise<RouteDefinition[]> {
     const state = await this.getOrCreatePlayerState(identity);
     if (!this.hasFullRouteAccess(state.profile)) {
@@ -754,6 +824,16 @@ export class PostgresGameDataStore implements GameDataStore, OnModuleDestroy {
           `,
           [profile.playerId],
         );
+        await this.insertAnalyticsEventInTransaction(client, {
+          playerId: profile.playerId,
+          eventName: 'tutorial_start',
+          sourceType: 'TRIP',
+          sourceId: tripResult.rows[0].trip_id,
+          payload: {
+            route_id: route.routeId,
+            route_key: route.routeKey,
+          },
+        });
       }
 
       await client.query('commit');
@@ -945,6 +1025,7 @@ export class PostgresGameDataStore implements GameDataStore, OnModuleDestroy {
       };
       const vehicle = this.toPlayerVehicle(vehicleResult.rows[0]);
       const now = new Date();
+      const rawDurationSeconds = Math.floor((now.getTime() - new Date(trip.lastSimulatedAt).getTime()) / 1000);
       const simulation = simulateOnlineDriveTick({
         mode: input.mode,
         now,
@@ -1105,6 +1186,72 @@ export class PostgresGameDataStore implements GameDataStore, OnModuleDestroy {
             landmark_id: simulation.landmarkId,
             distance_km: simulation.finalDistanceKm,
           },
+        });
+      }
+      if (simulation.forcedStopReason === 'LOW_FUEL') {
+        await this.insertAnalyticsEventInTransaction(client, {
+          playerId: profile.playerId,
+          eventName: 'stopped_low_fuel',
+          sourceType: 'TRIP',
+          sourceId: trip.tripId,
+          payload: {
+            distance_km: simulation.finalDistanceKm,
+            fuel_used: simulation.fuelUsed,
+          },
+        });
+      }
+      if (nextTutorialState !== profile.tutorialState && nextTutorialState === 'AUTO_DRIVING_UNLOCKED') {
+        await this.insertAnalyticsEventInTransaction(client, {
+          playerId: profile.playerId,
+          eventName: 'auto_driving_unlocked',
+          sourceType: 'TRIP',
+          sourceId: trip.tripId,
+          payload: {
+            distance_km: simulation.finalDistanceKm,
+          },
+        });
+      }
+      if (rawDurationSeconds > DEFAULT_SIMULATION_CONFIG.online.maxOnlineTickSeconds) {
+        await this.insertSuspiciousEventInTransaction(client, profile.playerId, {
+          riskType: 'TICK_RATE_LIMITED',
+          severity: 1,
+          sourceEndpoint: 'POST /trip/drive-tick',
+          tripId: trip.tripId,
+          requestPayload: {
+            mode: input.mode,
+            client_tick_seq: input.clientTickSeq,
+            idempotency_key: input.idempotencyKey,
+          },
+          serverSnapshot: {
+            raw_duration_seconds: rawDurationSeconds,
+            effective_duration_seconds: simulation.durationSeconds,
+            max_online_tick_seconds: DEFAULT_SIMULATION_CONFIG.online.maxOnlineTickSeconds,
+          },
+          actionTaken: 'CLAMP_AND_LOG',
+        });
+      }
+      const effectiveSpeedKmph = simulation.durationSeconds > 0
+        ? (simulation.rawDistanceGainKm / simulation.durationSeconds) * 3600
+        : 0;
+      const hardSpeedCapKmph = vehicle.baseSpeedKmph * 1.5;
+      if (effectiveSpeedKmph > hardSpeedCapKmph) {
+        await this.insertSuspiciousEventInTransaction(client, profile.playerId, {
+          riskType: 'SPEED_LIMIT_EXCEEDED',
+          severity: 2,
+          sourceEndpoint: 'POST /trip/drive-tick',
+          tripId: trip.tripId,
+          requestPayload: {
+            mode: input.mode,
+            client_tick_seq: input.clientTickSeq,
+            idempotency_key: input.idempotencyKey,
+          },
+          serverSnapshot: {
+            effective_speed_kmph: Number(effectiveSpeedKmph.toFixed(6)),
+            hard_speed_cap_kmph: Number(hardSpeedCapKmph.toFixed(6)),
+            raw_distance_gain_km: simulation.rawDistanceGainKm,
+            duration_seconds: simulation.durationSeconds,
+          },
+          actionTaken: 'CLAMP_AND_LOG',
         });
       }
       if (simulation.distanceGainKm > 0) {
@@ -2284,6 +2431,30 @@ export class PostgresGameDataStore implements GameDataStore, OnModuleDestroy {
         forced_stop_reason: report.forcedStopReason,
       },
     });
+    if (simulation.forcedStopReason === 'LANDMARK_REQUIRED') {
+      await this.insertAnalyticsEventInTransaction(client, {
+        playerId: profile.playerId,
+        eventName: 'stopped_at_landmark',
+        sourceType: 'TRIP',
+        sourceId: trip.tripId,
+        payload: {
+          landmark_id: simulation.landmarkId,
+          distance_km: simulation.finalDistanceKm,
+        },
+      });
+    }
+    if (simulation.forcedStopReason === 'LOW_FUEL') {
+      await this.insertAnalyticsEventInTransaction(client, {
+        playerId: profile.playerId,
+        eventName: 'stopped_low_fuel',
+        sourceType: 'TRIP',
+        sourceId: trip.tripId,
+        payload: {
+          distance_km: simulation.finalDistanceKm,
+          fuel_used: simulation.fuelUsed,
+        },
+      });
+    }
 
     return report;
   }
@@ -2384,6 +2555,23 @@ export class PostgresGameDataStore implements GameDataStore, OnModuleDestroy {
       ],
     );
 
+    await this.insertAnalyticsEventInTransaction(client, {
+      playerId: input.playerId,
+      eventName: 'wallet_currency_changed',
+      sourceType: input.sourceType,
+      sourceId: input.sourceId ?? input.idempotencyKey,
+      payload: {
+        currency: input.currency,
+        amount: signedAmount,
+        balance_before: balanceBefore,
+        balance_after: balanceAfter,
+        reason: input.reason,
+        source_type: input.sourceType,
+        source_id: input.sourceId ?? null,
+        idempotency_key: input.idempotencyKey,
+      },
+    });
+
     return this.toWalletTransaction(transactionResult.rows[0]);
   }
 
@@ -2453,6 +2641,41 @@ export class PostgresGameDataStore implements GameDataStore, OnModuleDestroy {
       `,
       [input.playerId, input.eventName, input.sourceType, input.sourceId, JSON.stringify(input.payload)],
     );
+  }
+
+  private async insertSuspiciousEventInTransaction(
+    client: PoolClient,
+    playerId: string,
+    input: RecordSuspiciousEventInput,
+  ): Promise<SuspiciousEvent> {
+    const result = await client.query(
+      `
+        insert into public.suspicious_events (
+          player_id,
+          risk_type,
+          severity,
+          source_endpoint,
+          trip_id,
+          request_payload,
+          server_snapshot,
+          action_taken
+        )
+        values ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8)
+        returning *
+      `,
+      [
+        playerId,
+        input.riskType,
+        input.severity,
+        input.sourceEndpoint,
+        input.tripId ?? null,
+        JSON.stringify(input.requestPayload ?? {}),
+        JSON.stringify(input.serverSnapshot ?? {}),
+        input.actionTaken,
+      ],
+    );
+
+    return this.toSuspiciousEvent(result.rows[0]);
   }
 
   private async getOrCreatePlayerProfileInTransaction(
@@ -2765,6 +2988,33 @@ export class PostgresGameDataStore implements GameDataStore, OnModuleDestroy {
     return {
       currency: row.currency as Currency,
       balance: Number(row.balance),
+    };
+  }
+
+  private toAnalyticsEvent(row: QueryResultRow): AnalyticsEvent {
+    return {
+      eventId: row.event_id,
+      playerId: row.player_id,
+      eventName: row.event_name,
+      sourceType: row.source_type ?? null,
+      sourceId: row.source_id ?? null,
+      eventPayload: row.event_payload ?? {},
+      occurredAt: row.occurred_at.toISOString(),
+    };
+  }
+
+  private toSuspiciousEvent(row: QueryResultRow): SuspiciousEvent {
+    return {
+      suspiciousEventId: row.suspicious_event_id,
+      playerId: row.player_id,
+      riskType: row.risk_type,
+      severity: Number(row.severity),
+      sourceEndpoint: row.source_endpoint ?? null,
+      tripId: row.trip_id ?? null,
+      requestPayload: row.request_payload ?? {},
+      serverSnapshot: row.server_snapshot ?? {},
+      actionTaken: row.action_taken,
+      createdAt: row.created_at.toISOString(),
     };
   }
 

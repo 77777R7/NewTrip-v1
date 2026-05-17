@@ -118,6 +118,45 @@ export type QuestEventName =
   | 'PHOTO_TAKEN'
   | 'ROUTE_COMPLETED';
 
+export type AnalyticsEvent = {
+  eventId: string;
+  playerId: string;
+  eventName: string;
+  sourceType: string | null;
+  sourceId: string | null;
+  eventPayload: Record<string, unknown>;
+  occurredAt: string;
+};
+
+export type RiskType =
+  | 'INVALID_MODE'
+  | 'TICK_RATE_LIMITED'
+  | 'REWARD_DUPLICATE_ATTEMPT'
+  | 'SPEED_LIMIT_EXCEEDED';
+
+export type SuspiciousEvent = {
+  suspiciousEventId: string;
+  playerId: string;
+  riskType: RiskType;
+  severity: number;
+  sourceEndpoint: string | null;
+  tripId: string | null;
+  requestPayload: Record<string, unknown>;
+  serverSnapshot: Record<string, unknown>;
+  actionTaken: string;
+  createdAt: string;
+};
+
+export type RecordSuspiciousEventInput = {
+  riskType: RiskType;
+  severity: number;
+  sourceEndpoint: string;
+  tripId?: string;
+  requestPayload?: Record<string, unknown>;
+  serverSnapshot?: Record<string, unknown>;
+  actionTaken: string;
+};
+
 export type DailyQuest = {
   questId: string;
   questKey: string;
@@ -362,6 +401,9 @@ export interface GameDataStore {
   claimDailyLogin(identity: AuthIdentity, input: ClaimDailyLoginInput): Promise<ClaimDailyLoginResult>;
   getDailyQuests(identity: AuthIdentity): Promise<DailyQuestListResult>;
   claimDailyQuest(identity: AuthIdentity, input: ClaimDailyQuestInput): Promise<ClaimDailyQuestResult>;
+  getAnalyticsEvents(identity: AuthIdentity, limit?: number): Promise<AnalyticsEvent[]>;
+  getSuspiciousEvents(identity: AuthIdentity, limit?: number): Promise<SuspiciousEvent[]>;
+  recordSuspiciousEvent(identity: AuthIdentity, input: RecordSuspiciousEventInput): Promise<SuspiciousEvent>;
   getAvailableRoutes(identity: AuthIdentity): Promise<RouteDefinition[]>;
   getRoute(identity: AuthIdentity, routeId: string): Promise<RouteDefinition | null>;
   unlockRoute(identity: AuthIdentity, input: UnlockRouteInput): Promise<RouteUnlockResult>;

@@ -25,9 +25,32 @@ export class DailyLoginService {
       return await this.gameDataStore.claimDailyLogin(identity, input);
     } catch (error) {
       if (error instanceof Error && error.message === 'DAILY_LOGIN_ALREADY_CLAIMED') {
+        await this.recordSuspiciousBestEffort(identity, {
+          riskType: 'REWARD_DUPLICATE_ATTEMPT',
+          severity: 3,
+          sourceEndpoint: 'POST /daily-login/claim',
+          requestPayload: {
+            idempotency_key: input.idempotencyKey,
+          },
+          serverSnapshot: {
+            reason: 'DAILY_LOGIN_ALREADY_CLAIMED',
+          },
+          actionTaken: 'REJECT',
+        });
         throw new ConflictException(error.message);
       }
       throw error;
+    }
+  }
+
+  private async recordSuspiciousBestEffort(
+    identity: AuthIdentity,
+    input: Parameters<GameDataStore['recordSuspiciousEvent']>[1],
+  ): Promise<void> {
+    try {
+      await this.gameDataStore.recordSuspiciousEvent(identity, input);
+    } catch {
+      // Risk logging should not mask the original duplicate-claim response.
     }
   }
 }

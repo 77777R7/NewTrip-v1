@@ -64,10 +64,12 @@ const requiredTables = [
   'landmarks',
   'player_unlocked_routes',
   'player_trips',
+  'analytics_events',
   'daily_login_claims',
   'quest_definitions',
   'player_quest_progress',
   'quest_claims',
+  'suspicious_events',
 ];
 
 for (const tableName of requiredTables) {

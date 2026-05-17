@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import {
+  AnalyticsEvent,
   AuthIdentity,
   CURRENCIES,
   Currency,
@@ -27,11 +28,13 @@ import {
   PlayerPhoto,
   PlayerState,
   PlayerVehicle,
+  RecordSuspiciousEventInput,
   RouteDefinition,
   RouteUnlockResult,
   RouteSegment,
   StartTripInput,
   Trip,
+  SuspiciousEvent,
   UnlockRouteInput,
   QuestEventName,
   VehicleMaintenanceInput,
@@ -56,6 +59,7 @@ type InternalAnalyticsEvent = {
   eventPayload: Record<string, unknown>;
   occurredAt: string;
 };
+type InternalSuspiciousEvent = SuspiciousEvent;
 type InternalDailyLoginClaim = {
   claimId: string;
   playerId: string;
@@ -324,6 +328,7 @@ export class InMemoryGameDataStore implements GameDataStore {
   private readonly offlineReports: OfflineReport[] = [];
   private readonly playerPhotos: PlayerPhoto[] = [];
   private readonly analyticsEvents: InternalAnalyticsEvent[] = [];
+  private readonly suspiciousEvents: InternalSuspiciousEvent[] = [];
 
   async getOrCreatePlayerState(identity: AuthIdentity): Promise<PlayerState> {
     const profile = await this.getOrCreatePlayerProfile(identity);
@@ -530,6 +535,53 @@ export class InMemoryGameDataStore implements GameDataStore {
     return result;
   }
 
+  async getAnalyticsEvents(identity: AuthIdentity, limit = 100): Promise<AnalyticsEvent[]> {
+    const profile = await this.getOrCreatePlayerProfile(identity);
+    return this.analyticsEvents
+      .filter((event) => event.playerId === profile.playerId)
+      .slice(-limit)
+      .map((event, index) => ({
+        eventId: `memory-analytics-${index}`,
+        playerId: event.playerId,
+        eventName: event.eventName,
+        sourceType: event.sourceType,
+        sourceId: event.sourceId,
+        eventPayload: { ...event.eventPayload },
+        occurredAt: event.occurredAt,
+      }));
+  }
+
+  async getSuspiciousEvents(identity: AuthIdentity, limit = 100): Promise<SuspiciousEvent[]> {
+    const profile = await this.getOrCreatePlayerProfile(identity);
+    return this.suspiciousEvents
+      .filter((event) => event.playerId === profile.playerId)
+      .slice(-limit)
+      .map((event) => ({
+        ...event,
+        requestPayload: { ...event.requestPayload },
+        serverSnapshot: { ...event.serverSnapshot },
+      }));
+  }
+
+  async recordSuspiciousEvent(identity: AuthIdentity, input: RecordSuspiciousEventInput): Promise<SuspiciousEvent> {
+    const profile = await this.getOrCreatePlayerProfile(identity);
+    this.ensurePlayerDefaults(profile.playerId);
+    const event: SuspiciousEvent = {
+      suspiciousEventId: randomUUID(),
+      playerId: profile.playerId,
+      riskType: input.riskType,
+      severity: input.severity,
+      sourceEndpoint: input.sourceEndpoint,
+      tripId: input.tripId ?? null,
+      requestPayload: input.requestPayload ?? {},
+      serverSnapshot: input.serverSnapshot ?? {},
+      actionTaken: input.actionTaken,
+      createdAt: new Date().toISOString(),
+    };
+    this.suspiciousEvents.push(event);
+    return { ...event };
+  }
+
   async getAvailableRoutes(identity: AuthIdentity): Promise<RouteDefinition[]> {
     const state = await this.getOrCreatePlayerState(identity);
     if (!this.hasFullRouteAccess(state.profile)) {
@@ -673,6 +725,17 @@ export class InMemoryGameDataStore implements GameDataStore {
     this.lockVehicle(playerId, playerVehicle.playerVehicleId, trip.tripId);
     if (state.profile.tutorialState === 'NOT_STARTED') {
       this.transitionTutorialState(playerId, 'ROUTE_SELECTED');
+      this.analyticsEvents.push({
+        playerId,
+        eventName: 'tutorial_start',
+        sourceType: 'TRIP',
+        sourceId: trip.tripId,
+        eventPayload: {
+          route_id: route.routeId,
+          route_key: route.routeKey,
+        },
+        occurredAt: now,
+      });
     }
     return this.tripWithRoute(trip);
   }
@@ -737,6 +800,7 @@ export class InMemoryGameDataStore implements GameDataStore {
     }
     const route = this.routeWithDetails(baseRoute);
     const now = new Date();
+    const rawDurationSeconds = Math.floor((now.getTime() - new Date(trip.lastSimulatedAt).getTime()) / 1000);
     const simulation = simulateOnlineDriveTick({
       mode: input.mode,
       now,
@@ -761,16 +825,15 @@ export class InMemoryGameDataStore implements GameDataStore {
     trip.lastSimulatedAt = now.toISOString();
     trip.status = simulation.updatedTripStatus;
     trip.forcedStopReason = simulation.forcedStopReason;
-    this.transitionTutorialState(
-      playerId,
-      nextTutorialStateAfterDriveTick({
-        currentState: profile.tutorialState,
-        mode: input.mode,
-        distanceGainKm: simulation.distanceGainKm,
-        finalDistanceKm: simulation.finalDistanceKm,
-        forcedStopReason: simulation.forcedStopReason,
-      }),
-    );
+    const previousTutorialState = profile.tutorialState;
+    const nextTutorialState = nextTutorialStateAfterDriveTick({
+      currentState: previousTutorialState,
+      mode: input.mode,
+      distanceGainKm: simulation.distanceGainKm,
+      finalDistanceKm: simulation.finalDistanceKm,
+      forcedStopReason: simulation.forcedStopReason,
+    });
+    this.transitionTutorialState(playerId, nextTutorialState);
 
     vehicle.currentFuel = simulation.updatedFuel;
     vehicle.currentCleanliness = simulation.updatedCleanliness;
@@ -848,6 +911,74 @@ export class InMemoryGameDataStore implements GameDataStore {
           distance_km: simulation.finalDistanceKm,
         },
         occurredAt: now.toISOString(),
+      });
+    }
+    if (simulation.forcedStopReason === 'LOW_FUEL') {
+      this.analyticsEvents.push({
+        playerId,
+        eventName: 'stopped_low_fuel',
+        sourceType: 'TRIP',
+        sourceId: trip.tripId,
+        eventPayload: {
+          distance_km: simulation.finalDistanceKm,
+          fuel_used: simulation.fuelUsed,
+        },
+        occurredAt: now.toISOString(),
+      });
+    }
+    if (previousTutorialState !== nextTutorialState && nextTutorialState === 'AUTO_DRIVING_UNLOCKED') {
+      this.analyticsEvents.push({
+        playerId,
+        eventName: 'auto_driving_unlocked',
+        sourceType: 'TRIP',
+        sourceId: trip.tripId,
+        eventPayload: {
+          distance_km: simulation.finalDistanceKm,
+        },
+        occurredAt: now.toISOString(),
+      });
+    }
+    if (rawDurationSeconds > DEFAULT_SIMULATION_CONFIG.online.maxOnlineTickSeconds) {
+      await this.recordSuspiciousEvent(identity, {
+        riskType: 'TICK_RATE_LIMITED',
+        severity: 1,
+        sourceEndpoint: 'POST /trip/drive-tick',
+        tripId: trip.tripId,
+        requestPayload: {
+          mode: input.mode,
+          client_tick_seq: input.clientTickSeq,
+          idempotency_key: input.idempotencyKey,
+        },
+        serverSnapshot: {
+          raw_duration_seconds: rawDurationSeconds,
+          effective_duration_seconds: simulation.durationSeconds,
+          max_online_tick_seconds: DEFAULT_SIMULATION_CONFIG.online.maxOnlineTickSeconds,
+        },
+        actionTaken: 'CLAMP_AND_LOG',
+      });
+    }
+    const effectiveSpeedKmph = simulation.durationSeconds > 0
+      ? (simulation.rawDistanceGainKm / simulation.durationSeconds) * 3600
+      : 0;
+    const hardSpeedCapKmph = vehicle.baseSpeedKmph * 1.5;
+    if (effectiveSpeedKmph > hardSpeedCapKmph) {
+      await this.recordSuspiciousEvent(identity, {
+        riskType: 'SPEED_LIMIT_EXCEEDED',
+        severity: 2,
+        sourceEndpoint: 'POST /trip/drive-tick',
+        tripId: trip.tripId,
+        requestPayload: {
+          mode: input.mode,
+          client_tick_seq: input.clientTickSeq,
+          idempotency_key: input.idempotencyKey,
+        },
+        serverSnapshot: {
+          effective_speed_kmph: Number(effectiveSpeedKmph.toFixed(6)),
+          hard_speed_cap_kmph: Number(hardSpeedCapKmph.toFixed(6)),
+          raw_distance_gain_km: simulation.rawDistanceGainKm,
+          duration_seconds: simulation.durationSeconds,
+        },
+        actionTaken: 'CLAMP_AND_LOG',
       });
     }
     if (simulation.distanceGainKm > 0) {
@@ -1261,6 +1392,23 @@ export class InMemoryGameDataStore implements GameDataStore {
     };
 
     this.transactionsByPlayerAndKey.set(txKey, transaction);
+    this.analyticsEvents.push({
+      playerId: input.playerId,
+      eventName: 'wallet_currency_changed',
+      sourceType: input.sourceType,
+      sourceId: input.sourceId ?? input.idempotencyKey,
+      eventPayload: {
+        currency: input.currency,
+        amount: signedAmount,
+        balance_before: balanceBefore,
+        balance_after: balanceAfter,
+        reason: input.reason,
+        source_type: input.sourceType,
+        source_id: input.sourceId ?? null,
+        idempotency_key: input.idempotencyKey,
+      },
+      occurredAt: transaction.createdAt,
+    });
     return transaction;
   }
 
@@ -1400,6 +1548,32 @@ export class InMemoryGameDataStore implements GameDataStore {
       },
       occurredAt: report.generatedAt,
     });
+    if (simulation.forcedStopReason === 'LANDMARK_REQUIRED') {
+      this.analyticsEvents.push({
+        playerId: profile.playerId,
+        eventName: 'stopped_at_landmark',
+        sourceType: 'TRIP',
+        sourceId: trip.tripId,
+        eventPayload: {
+          landmark_id: simulation.landmarkId,
+          distance_km: simulation.finalDistanceKm,
+        },
+        occurredAt: report.generatedAt,
+      });
+    }
+    if (simulation.forcedStopReason === 'LOW_FUEL') {
+      this.analyticsEvents.push({
+        playerId: profile.playerId,
+        eventName: 'stopped_low_fuel',
+        sourceType: 'TRIP',
+        sourceId: trip.tripId,
+        eventPayload: {
+          distance_km: simulation.finalDistanceKm,
+          fuel_used: simulation.fuelUsed,
+        },
+        occurredAt: report.generatedAt,
+      });
+    }
     return { ...report };
   }
 

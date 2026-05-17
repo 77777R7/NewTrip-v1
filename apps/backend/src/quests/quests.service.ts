@@ -33,10 +33,37 @@ export class QuestsService {
       if (error.message === 'QUEST_NOT_FOUND') {
         throw new NotFoundException(error.message);
       }
+      if (error.message === 'QUEST_ALREADY_CLAIMED') {
+        await this.recordSuspiciousBestEffort(identity, {
+          riskType: 'REWARD_DUPLICATE_ATTEMPT',
+          severity: 3,
+          sourceEndpoint: 'POST /quests/claim',
+          requestPayload: {
+            quest_key: input.questKey,
+            idempotency_key: input.idempotencyKey,
+          },
+          serverSnapshot: {
+            reason: 'QUEST_ALREADY_CLAIMED',
+          },
+          actionTaken: 'REJECT',
+        });
+        throw new ConflictException(error.message);
+      }
       if (['QUEST_INCOMPLETE', 'QUEST_ALREADY_CLAIMED'].includes(error.message)) {
         throw new ConflictException(error.message);
       }
       throw error;
+    }
+  }
+
+  private async recordSuspiciousBestEffort(
+    identity: AuthIdentity,
+    input: Parameters<GameDataStore['recordSuspiciousEvent']>[1],
+  ): Promise<void> {
+    try {
+      await this.gameDataStore.recordSuspiciousEvent(identity, input);
+    } catch {
+      // Risk logging should not mask the original quest response.
     }
   }
 }

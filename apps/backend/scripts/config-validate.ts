@@ -117,11 +117,12 @@ export function validateYamlFiles(filePaths: string[]): void {
   }
 }
 
-function validateDefaultParameters(config: unknown): void {
+export function validateDefaultParametersConfig(config: unknown): void {
   const root = record(config, 'config/default_parameters.v1.yaml');
   const simulation = child(root, 'simulation', 'simulation');
   const drivingModes = child(root, 'driving_modes', 'driving_modes');
   const economy = child(root, 'economy', 'economy');
+  const tripPrepFee = child(economy, 'trip_prep_fee', 'economy.trip_prep_fee');
   const routes = child(root, 'routes', 'routes');
   const tutorial = child(routes, 'tutorial', 'routes.tutorial');
 
@@ -131,17 +132,31 @@ function validateDefaultParameters(config: unknown): void {
   assert(numberValue(drivingModes, 'hold_to_drive_multiplier') === 1, 'Hold to Drive multiplier must be 1.00');
   assert(numberValue(drivingModes, 'auto_driving_multiplier') === 0.85, 'Auto Driving multiplier must be 0.85');
   assert(numberValue(drivingModes, 'hold_to_boost_multiplier') === 1.1, 'Hold to Boost multiplier must be 1.10');
-  assert(numberValue(economy, 'online_coin_per_km') === 10, 'online_coin_per_km must be 10');
-  assert(numberValue(economy, 'offline_coin_per_km') === 4, 'offline_coin_per_km must be 4');
+  const onlineCoinPerKm = numberValue(economy, 'online_coin_per_km');
+  const offlineCoinPerKm = numberValue(economy, 'offline_coin_per_km');
+  assert(offlineCoinPerKm < onlineCoinPerKm, 'offline_coin_per_km must be lower than online_coin_per_km');
+  assert(onlineCoinPerKm === 10, 'online_coin_per_km must be 10');
+  assert(offlineCoinPerKm === 4, 'offline_coin_per_km must be 4');
   assert(numberValue(economy, 'online_token_km') === 10, 'online_token_km must be 10');
   assert(numberValue(economy, 'offline_token_km') === 20, 'offline_token_km must be 20');
+  assert(numberValue(tripPrepFee, 'max', 'economy.trip_prep_fee.max') <= 300, 'Trip Prep Fee max must not exceed 300');
   assert(numberValue(tutorial, 'distance_km_min') === 80, 'Tutorial Route min distance must be 80 km');
   assert(numberValue(tutorial, 'distance_km_max') === 120, 'Tutorial Route max distance must be 120 km');
   assert(numberValue(tutorial, 'unlock_cost_stamps') === 0, 'Tutorial Route must not cost Souvenir Stamps');
   assert(numberValue(tutorial, 'trip_prep_fee_coins') === 0, 'Tutorial Route must be free');
+
+  if (root.gacha !== undefined) {
+    const gacha = child(root, 'gacha', 'gacha');
+    const rates = child(gacha, 'rates', 'gacha.rates');
+    const rateValues = Object.keys(rates).map((key) => numberValue(rates, key, `gacha.rates.${key}`));
+    assert(rateValues.length > 0, 'gacha rates must not be empty if present');
+    assert(rateValues.every((value) => value >= 0), 'gacha rates must be non-negative');
+    const totalRate = Number(rateValues.reduce((sum, value) => sum + value, 0).toFixed(6));
+    assert(totalRate === 100, 'gacha rates must total 100');
+  }
 }
 
-function validateTutorialRoute(config: unknown): void {
+export function validateTutorialRouteConfig(config: unknown): void {
   const root = record(config, 'config/tutorial_route.v1.yaml');
   const route = child(root, 'route', 'route');
   const segments = array(root.segments, 'segments').map((value, index) => record(value, `segments[${index}]`));
@@ -151,6 +166,7 @@ function validateTutorialRoute(config: unknown): void {
   const totalDistanceKm = numberValue(route, 'total_distance_km', 'route.total_distance_km');
   assert(totalDistanceKm >= 80 && totalDistanceKm <= 120, 'Tutorial Route must stay between 80 and 120 km');
   assert(numberValue(route, 'trip_prep_fee_coins', 'route.trip_prep_fee_coins') === 0, 'Tutorial Route must be free');
+  assert(numberValue(route, 'trip_prep_fee_coins', 'route.trip_prep_fee_coins') <= 300, 'Trip Prep Fee must not exceed 300');
   assert(numberValue(route, 'unlock_cost_stamps', 'route.unlock_cost_stamps') === 0, 'Tutorial Route must not cost Souvenir Stamps');
   assert(segments.length === 3, 'Tutorial Route must have exactly three seed segments for Day 2');
   assert(numberValue(segments[0], 'start_km', 'segments[0].start_km') === 0, 'Tutorial Route segments must start at 0 km');
@@ -176,7 +192,10 @@ function validateTutorialRoute(config: unknown): void {
   const firstLandmark = landmarks[0];
   const landmarkDistanceKm = numberValue(firstLandmark, 'distance_km', 'landmarks[0].distance_km');
   assert(booleanValue(firstLandmark, 'required_stop', 'landmarks[0].required_stop'), 'first Tutorial landmark must be required');
-  assert(landmarkDistanceKm > 0 && landmarkDistanceKm < totalDistanceKm, 'Tutorial landmark must be inside route range');
+  for (let i = 0; i < landmarks.length; i += 1) {
+    const distanceKm = numberValue(landmarks[i], 'distance_km', `landmarks[${i}].distance_km`);
+    assert(distanceKm > 0 && distanceKm < totalDistanceKm, `landmarks[${i}].distance_km must be inside route range`);
+  }
   assert(landmarkDistanceKm >= totalDistanceKm * 0.3 && landmarkDistanceKm <= totalDistanceKm * 0.45, 'first landmark must be 30%-45% into Tutorial Route');
 }
 
@@ -204,8 +223,8 @@ export function validateWorkspaceConfigs(options: ValidateWorkspaceOptions = {})
     return;
   }
 
-  validateDefaultParameters(parseYamlFile('config/default_parameters.v1.yaml'));
-  validateTutorialRoute(parseYamlFile('config/tutorial_route.v1.yaml'));
+  validateDefaultParametersConfig(parseYamlFile('config/default_parameters.v1.yaml'));
+  validateTutorialRouteConfig(parseYamlFile('config/tutorial_route.v1.yaml'));
   validateDefaultVehicle(parseYamlFile('config/default_vehicle.v1.yaml'));
 }
 

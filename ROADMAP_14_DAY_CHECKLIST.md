@@ -226,37 +226,38 @@ Goal: implement core formulas as pure functions before DB orchestration.
 
 Files:
 
-- [ ] `apps/backend/src/modules/simulation/simulation.formulas.ts`.
-- [ ] `apps/backend/src/modules/simulation/simulation.types.ts`.
-- [ ] `apps/backend/src/modules/simulation/simulation.spec.ts`.
+- [x] `apps/backend/src/modules/simulation/simulation.formulas.ts`.
+- [x] `apps/backend/src/modules/simulation/simulation.types.ts`.
+- [x] `apps/backend/src/modules/simulation/simulation.constants.ts`.
+- [x] `apps/backend/src/modules/simulation/simulation.formulas.spec.ts`.
 
 Pure functions:
 
-- [ ] `calculate_distance_gain()`.
-- [ ] `calculate_fuel_used()`.
-- [ ] `calculate_cleanliness_loss()`.
-- [ ] `calculate_durability_loss()`.
-- [ ] `calculate_offline_speed()`.
-- [ ] `check_for_forced_stop()`.
-- [ ] `calculate_online_rewards()`.
-- [ ] `calculate_offline_pending_rewards()`.
+- [x] `calculate_distance_gain()`.
+- [x] `calculate_fuel_used()`.
+- [x] `calculate_cleanliness_loss()`.
+- [x] `calculate_durability_loss()`.
+- [x] `calculate_offline_speed()`.
+- [x] `check_for_forced_stop()`.
+- [x] `calculate_online_rewards()`.
+- [x] `calculate_offline_pending_rewards()`.
 
 Formula defaults:
 
-- [ ] Hold to Drive multiplier is `1.00`.
-- [ ] Auto Driving multiplier is `0.85`.
-- [ ] Hold to Boost multiplier is `1.10`.
-- [ ] Online Road Coins are `floor(distance_km * 10 * route_reward_multiplier)`.
-- [ ] Offline Road Coins are `floor(distance_km * 4 * route_reward_multiplier)`.
+- [x] Hold to Drive multiplier is `1.00`.
+- [x] Auto Driving multiplier is `0.85`.
+- [x] Hold to Boost multiplier is `1.10`.
+- [x] Online Road Coins are `floor(distance_km * 10 * route_reward_multiplier)`.
+- [x] Offline Road Coins are `floor(distance_km * 4 * route_reward_multiplier)`.
 
 Acceptance:
 
-- [ ] All core formulas have unit tests.
-- [ ] Forced stop can stop at landmark.
-- [ ] Forced stop can stop at route end.
-- [ ] Fuel-limited distance can clamp progress.
-- [ ] Auto/Hold/Boost produce different distances.
-- [ ] Test case: current distance 39.9, landmark 40, raw distance 1 -> final gain 0.1 and reason `LANDMARK_REQUIRED`.
+- [x] All core formulas have unit tests.
+- [x] Forced stop can stop at landmark.
+- [x] Forced stop can stop at route end.
+- [x] Fuel-limited distance can clamp progress.
+- [x] Auto/Hold/Boost produce different distances.
+- [x] Test case: current distance 39.9, landmark 40, raw distance 1 -> final gain 0.1 and reason `LANDMARK_REQUIRED`.
 
 ## Day 6: Online Drive Tick
 
@@ -678,3 +679,4 @@ Trip Simulation Engine
 - 2026-05-16: Added `docs/art/scene-pack-contract-v1.md` as the mandatory asset production contract and wired the art bible and ComfyUI workflow to require usage class, layer type, time preset, naming, and metadata for future generation.
 - 2026-05-16: Clarified art generation policy: V1 uses ChatGPT Image 2.0-first for fast draft exploration, while ComfyUI/Leonardo remain later repeatable production-factory options under the same scene-pack contract.
 - 2026-05-16: Completed pre-Day-5 cleanup gate: expanded remaining inline config YAML, added parser-backed YAML validation, added `config:validate-yaml`, and covered config validation with unit tests.
+- 2026-05-16: Completed Day 5 Trip Simulation Engine pure functions with typed simulation inputs, default constants, distance/consumption/offline/forced-stop/reward formulas, and focused unit tests.

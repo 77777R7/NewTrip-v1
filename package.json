@@ -4,13 +4,17 @@
   "private": true,
   "description": "NewTrip / Travel Simulator V1 playable spine workspace.",
   "workspaces": [
-    "apps/backend"
+    "apps/backend",
+    "apps/debug-client"
   ],
   "scripts": {
     "dev": "npm run dev -w @newtrip/backend",
+    "dev:debug": "npm run dev -w @newtrip/debug-client",
+    "dev:demo": "node scripts/dev-demo.mjs",
     "build": "npm run build -w @newtrip/backend",
     "test": "npm run test -w @newtrip/backend",
     "test:e2e": "npm run test:e2e -w @newtrip/backend",
+    "smoke:debug-client": "npm run smoke -w @newtrip/debug-client",
     "db:smoke": "npm run db:smoke -w @newtrip/backend",
     "config:validate": "npm run config:validate -w @newtrip/backend",
     "config:validate-yaml": "npm run config:validate-yaml -w @newtrip/backend"

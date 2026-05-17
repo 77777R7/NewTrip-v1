@@ -391,6 +391,23 @@ export type VehicleMaintenanceResult = {
   walletTransactions: WalletTransaction[];
 };
 
+export type DebugSimulateOfflineInput = {
+  hours: number;
+};
+
+export type DebugSimulateOfflineResult = PlayerState & {
+  simulatedOfflineHours: number;
+};
+
+export type DebugPrimeDriveTickInput = {
+  seconds: number;
+};
+
+export type DebugPrimeDriveTickResult = {
+  trip: Trip;
+  primedSeconds: number;
+};
+
 export interface GameDataStore {
   getOrCreatePlayerState(identity: AuthIdentity): Promise<PlayerState>;
   getOrCreatePlayerProfile(identity: AuthIdentity): Promise<PlayerProfile>;
@@ -415,4 +432,6 @@ export interface GameDataStore {
   claimOfflineReport(identity: AuthIdentity, input: ClaimOfflineReportInput): Promise<ClaimOfflineReportResult>;
   completeRoute(identity: AuthIdentity, input: CompleteRouteInput): Promise<CompleteRouteResult>;
   maintainVehicle(identity: AuthIdentity, input: VehicleMaintenanceInput): Promise<VehicleMaintenanceResult>;
+  debugSimulateOffline(identity: AuthIdentity, input: DebugSimulateOfflineInput): Promise<DebugSimulateOfflineResult>;
+  debugPrimeDriveTick(identity: AuthIdentity, input: DebugPrimeDriveTickInput): Promise<DebugPrimeDriveTickResult>;
 }

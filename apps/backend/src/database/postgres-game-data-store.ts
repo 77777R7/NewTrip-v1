@@ -26,6 +26,10 @@ import {
   DailyLoginStatus,
   DailyQuest,
   DailyQuestListResult,
+  DebugPrimeDriveTickInput,
+  DebugPrimeDriveTickResult,
+  DebugSimulateOfflineInput,
+  DebugSimulateOfflineResult,
   PlayerProfile,
   PlayerPhoto,
   PlayerState,
@@ -1976,6 +1980,97 @@ export class PostgresGameDataStore implements GameDataStore, OnModuleDestroy {
 
       await client.query('commit');
       return result;
+    } catch (error) {
+      await client.query('rollback');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async debugSimulateOffline(
+    identity: AuthIdentity,
+    input: DebugSimulateOfflineInput,
+  ): Promise<DebugSimulateOfflineResult> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('begin');
+      const profile = await this.getOrCreatePlayerProfileInTransaction(client, identity);
+      await this.ensurePlayerDefaultsInTransaction(client, profile.playerId);
+      const rewoundAt = new Date(Date.now() - input.hours * 60 * 60 * 1000).toISOString();
+
+      await client.query(
+        `
+          update public.players
+          set last_seen_at = $2, updated_at = now()
+          where player_id = $1
+        `,
+        [profile.playerId, rewoundAt],
+      );
+      await client.query(
+        `
+          update public.player_trips
+          set last_simulated_at = $2
+          where player_id = $1 and status = 'ACTIVE'
+        `,
+        [profile.playerId, rewoundAt],
+      );
+
+      const updatedProfile = {
+        ...profile,
+        lastSeenAt: rewoundAt,
+      };
+      const pendingOfflineReport = await this.getOrCreatePendingOfflineReportInTransaction(client, updatedProfile);
+      await this.touchPlayerLastSeenInTransaction(client, profile.playerId);
+      const state = await this.loadPlayerStateInTransaction(client, profile.playerId);
+
+      await client.query('commit');
+      return {
+        ...state,
+        pendingOfflineReport,
+        simulatedOfflineHours: input.hours,
+      };
+    } catch (error) {
+      await client.query('rollback');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async debugPrimeDriveTick(
+    identity: AuthIdentity,
+    input: DebugPrimeDriveTickInput,
+  ): Promise<DebugPrimeDriveTickResult> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('begin');
+      const profile = await this.getOrCreatePlayerProfileInTransaction(client, identity);
+      const tripResult = await client.query(
+        `
+          update public.player_trips
+          set last_simulated_at = $2
+          where trip_id = (
+            select trip_id
+            from public.player_trips
+            where player_id = $1 and status = 'ACTIVE'
+            order by started_at desc
+            limit 1
+          )
+          returning *
+        `,
+        [profile.playerId, new Date(Date.now() - input.seconds * 1000).toISOString()],
+      );
+      if (!tripResult.rowCount) {
+        throw new Error('ACTIVE_TRIP_NOT_FOUND');
+      }
+
+      const trip = await this.tripWithRouteInTransaction(client, this.toTrip(tripResult.rows[0]), profile.playerId);
+      await client.query('commit');
+      return {
+        trip,
+        primedSeconds: input.seconds,
+      };
     } catch (error) {
       await client.query('rollback');
       throw error;

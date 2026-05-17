@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { AdminModule } from './admin/admin.module';
 import { DailyLoginModule } from './daily-login/daily-login.module';
 import { DatabaseModule } from './database/database.module';
+import { DebugModule } from './debug/debug.module';
 import { HealthModule } from './health/health.module';
 import { PlayerModule } from './player/player.module';
 import { QuestsModule } from './quests/quests.module';
@@ -23,6 +24,7 @@ import { WalletModule } from './wallet/wallet.module';
     DailyLoginModule,
     QuestsModule,
     AdminModule,
+    DebugModule,
     RoutesModule,
     TripModule,
     VehicleModule,

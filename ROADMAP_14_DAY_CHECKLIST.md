@@ -517,7 +517,7 @@ Acceptance:
 
 Goal: make the project demoable without Postman.
 
-Option A: Unity Thin Client:
+Option A: Unity Thin Client (deferred; Debug Web Client is the Day 13 delivery):
 
 - [ ] Login / Start.
 - [ ] Route Board.
@@ -545,26 +545,29 @@ Travel Report screen:
 - [ ] Stop reason.
 - [ ] Claim button.
 
-Option B: Debug Web Client if Unity is too slow:
+Option B: Debug Web Client:
 
-- [ ] Create `apps/debug-client/`.
-- [ ] Button: Create Player.
-- [ ] Button: Start Tutorial.
-- [ ] Button: Drive Tick.
-- [ ] Button: Complete Landmark.
-- [ ] Button: Simulate Offline.
-- [ ] Button: Claim Report.
-- [ ] Button: Refuel.
-- [ ] Button: Complete Route.
-- [ ] Button: Unlock Short Route.
+- [x] Create `apps/debug-client/`.
+- [x] Button: Create Player / Refresh State.
+- [x] Button: Start Tutorial.
+- [x] Button: Drive Tick.
+- [x] Button: Complete Landmark.
+- [x] Button: Simulate Offline.
+- [x] Button: Claim Report.
+- [x] Button: Refuel.
+- [x] Button: Clean.
+- [x] Button: Repair.
+- [x] Button: Complete Route.
+- [x] Button: Unlock Short Route.
+- [x] Button: Run Demo Script.
 
 Acceptance:
 
-- [ ] UI can run the full demo.
-- [ ] Demo does not require Postman.
-- [ ] UI shows backend state.
-- [ ] Drive tick updates distance and vehicle status.
-- [ ] Travel Report can be claimed.
+- [x] UI can run the full demo.
+- [x] Demo does not require Postman.
+- [x] UI shows backend state.
+- [x] Drive tick updates distance and vehicle status.
+- [x] Travel Report can be claimed.
 
 ## Day 14: End-To-End QA, Demo, And Soft Launch Prep
 
@@ -684,6 +687,7 @@ Trip Simulation Engine
 - 2026-05-16: Generated and archived first Tutorial Coast draft layer test outputs for sky, far ocean, lighthouse silhouettes, roadside grass, and road foreground; marked them as art-direction drafts, not production-complete Unity assets.
 - 2026-05-16: Added `docs/art/scene-pack-contract-v1.md` as the mandatory asset production contract and wired the art bible and ComfyUI workflow to require usage class, layer type, time preset, naming, and metadata for future generation.
 - 2026-05-16: Clarified art generation policy: V1 uses ChatGPT Image 2.0-first for fast draft exploration, while ComfyUI/Leonardo remain later repeatable production-factory options under the same scene-pack contract.
+- 2026-05-16: Created the first 0-35 km Big Sur Sunset Coastal Cliffs layer composite mock from five generated draft layers and recorded the review caveats for alpha cleanup, road animation, HUD safe area, and Unity import readiness.
 - 2026-05-16: Completed pre-Day-5 cleanup gate: expanded remaining inline config YAML, added parser-backed YAML validation, added `config:validate-yaml`, and covered config validation with unit tests.
 - 2026-05-16: Completed Day 5 Trip Simulation Engine pure functions with typed simulation inputs, default constants, distance/consumption/offline/forced-stop/reward formulas, and focused unit tests.
 - 2026-05-16: Completed Day 6 online drive tick: `/trip/drive-tick`, backend-authoritative distance/vehicle/wallet updates, tick idempotency, max-duration clamp, landmark forced stop, analytics event writes, and route-end/low-fuel tests.
@@ -693,3 +697,4 @@ Trip Simulation Engine
 - 2026-05-17: Completed Day 10 route completion/unlock slice: Big Sur tutorial completion rewards, required-landmark guard, Short Route unlock with Souvenir Stamps, Trip Prep Fee on unlocked route start, and Supabase migration verification.
 - 2026-05-17: Completed Day 11 daily-login and basic quest slice: `/daily-login`, `/quests/daily`, idempotent reward claims, five travel-loop quest events, wallet-ledger rewards, Day 7 weekly Stamp guard, and Supabase migration verification.
 - 2026-05-17: Completed Day 12 admin config/analytics/risk slice: stricter config validation, admin diagnostics read APIs, `wallet_currency_changed` and core travel analytics, `suspicious_events` logging for invalid modes, clamped ticks, duplicate reward attempts, and Supabase migration verification.
+- 2026-05-17: Completed Day 13 Debug Web Client slice: `apps/debug-client`, local backend proxy, demo controls for the full playable spine, debug-only time-skip helpers, smoke coverage, and a one-command `npm run dev:demo` launcher.

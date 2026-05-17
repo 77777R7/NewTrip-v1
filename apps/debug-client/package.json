@@ -1,0 +1,14 @@
+{
+  "name": "@newtrip/debug-client",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Debug web client for running the NewTrip V1 playable spine without Postman.",
+  "type": "module",
+  "scripts": {
+    "dev": "node server.mjs",
+    "smoke": "node scripts/smoke.mjs"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

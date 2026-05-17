@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>NewTrip V1 Debug Client</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <main class="shell">
+      <section class="topbar" aria-label="Demo control header">
+        <div>
+          <p class="eyebrow">NewTrip V1 Debug Client</p>
+          <h1>Playable Spine Console</h1>
+        </div>
+        <label class="auth-control">
+          <span>Player</span>
+          <input id="authId" autocomplete="off">
+        </label>
+        <button id="resetPlayer" class="ghost" type="button">New Player</button>
+      </section>
+
+      <section class="workspace">
+        <aside class="flow panel" aria-label="Demo actions">
+          <div class="panel-heading">
+            <p class="eyebrow">Core Loop</p>
+            <h2>Demo Flow</h2>
+          </div>
+          <button data-action="loadState" type="button">Create / Refresh Player</button>
+          <button data-action="startTutorial" type="button">Start Tutorial</button>
+          <button data-action="driveTick" type="button">Drive Tick</button>
+          <div class="inline-control">
+            <label for="offlineHours">Offline hours</label>
+            <input id="offlineHours" min="0.25" max="24" step="0.25" type="number" value="2">
+          </div>
+          <button data-action="simulateOffline" type="button">Simulate Offline</button>
+          <button data-action="claimReport" type="button">Claim Report</button>
+          <button data-action="completeLandmark" type="button">Complete Landmark</button>
+          <button data-action="refuel" type="button">Refuel</button>
+          <button data-action="clean" type="button">Clean</button>
+          <button data-action="repair" type="button">Repair</button>
+          <button data-action="completeRoute" type="button">Complete Route</button>
+          <button data-action="unlockShortRoute" type="button">Unlock Short Route</button>
+          <button data-action="runDemo" class="primary" type="button">Run Demo Script</button>
+          <p class="hint">For route-end demos, set offline hours to 8 after the first photo.</p>
+        </aside>
+
+        <section class="drive-stage" aria-label="Driving state">
+          <div class="scene">
+            <img src="/assets/art/scene_packs/california_hwy_1/bigsur_sunset/review/bigsur_sunset_driving_composite_mock_v02.png" alt="">
+            <div class="hud">
+              <span id="hudDistance">0.0 km</span>
+              <span id="hudRoute">Big Sur Sunset Drive</span>
+              <span id="hudStatus">No active trip</span>
+            </div>
+            <div class="road-readout">
+              <span id="vehicleName">Starter Vehicle</span>
+              <strong id="tripProgress">0%</strong>
+            </div>
+          </div>
+
+          <div class="metrics">
+            <div>
+              <span>Fuel</span>
+              <meter id="fuelMeter" min="0" max="100" value="100"></meter>
+              <strong id="fuelValue">--</strong>
+            </div>
+            <div>
+              <span>Clean</span>
+              <meter id="cleanMeter" min="0" max="100" value="100"></meter>
+              <strong id="cleanValue">--</strong>
+            </div>
+            <div>
+              <span>Durability</span>
+              <meter id="durabilityMeter" min="0" max="100" value="100"></meter>
+              <strong id="durabilityValue">--</strong>
+            </div>
+          </div>
+
+          <div id="statusLine" class="status-line">Ready.</div>
+        </section>
+
+        <aside class="state panel" aria-label="Backend state">
+          <div class="tabs" role="tablist" aria-label="State tabs">
+            <button class="tab active" data-tab="summary" type="button">Summary</button>
+            <button class="tab" data-tab="wallet" type="button">Wallet</button>
+            <button class="tab" data-tab="quests" type="button">Quests</button>
+            <button class="tab" data-tab="events" type="button">Events</button>
+            <button class="tab" data-tab="raw" type="button">Raw</button>
+          </div>
+          <div id="summaryTab" class="tab-panel active"></div>
+          <div id="walletTab" class="tab-panel"></div>
+          <div id="questsTab" class="tab-panel"></div>
+          <div id="eventsTab" class="tab-panel"></div>
+          <pre id="rawTab" class="tab-panel raw"></pre>
+        </aside>
+      </section>
+    </main>
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>

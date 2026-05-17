@@ -24,6 +24,10 @@ import {
   DailyLoginStatus,
   DailyQuest,
   DailyQuestListResult,
+  DebugPrimeDriveTickInput,
+  DebugPrimeDriveTickResult,
+  DebugSimulateOfflineInput,
+  DebugSimulateOfflineResult,
   PlayerProfile,
   PlayerPhoto,
   PlayerState,
@@ -1355,6 +1359,47 @@ export class InMemoryGameDataStore implements GameDataStore {
     this.vehicleMaintenanceResultByPlayerAndIdempotencyKey.set(resultKey, this.cloneVehicleMaintenanceResult(result));
     this.touchPlayerLastSeen(playerId);
     return result;
+  }
+
+  async debugSimulateOffline(
+    identity: AuthIdentity,
+    input: DebugSimulateOfflineInput,
+  ): Promise<DebugSimulateOfflineResult> {
+    const profile = await this.getOrCreatePlayerProfile(identity);
+    this.ensurePlayerDefaults(profile.playerId);
+    const rewindMs = input.hours * 60 * 60 * 1000;
+    const rewoundAt = new Date(Date.now() - rewindMs).toISOString();
+    profile.lastSeenAt = rewoundAt;
+    profile.updatedAt = rewoundAt;
+
+    const trip = this.findRunningTrip(profile.playerId);
+    if (trip?.status === 'ACTIVE') {
+      trip.lastSimulatedAt = rewoundAt;
+    }
+
+    const state = await this.getOrCreatePlayerState(identity);
+    return {
+      ...state,
+      simulatedOfflineHours: input.hours,
+    };
+  }
+
+  async debugPrimeDriveTick(
+    identity: AuthIdentity,
+    input: DebugPrimeDriveTickInput,
+  ): Promise<DebugPrimeDriveTickResult> {
+    const profile = await this.getOrCreatePlayerProfile(identity);
+    this.ensurePlayerDefaults(profile.playerId);
+    const trip = this.findRunningTrip(profile.playerId);
+    if (!trip || trip.status !== 'ACTIVE') {
+      throw new Error('ACTIVE_TRIP_NOT_FOUND');
+    }
+
+    trip.lastSimulatedAt = new Date(Date.now() - input.seconds * 1000).toISOString();
+    return {
+      trip: this.tripWithRoute(trip),
+      primedSeconds: input.seconds,
+    };
   }
 
   private mutateWallet(input: WalletMutationInput, signedAmount: number): WalletTransaction {

@@ -1,0 +1,42 @@
+{
+  "usage": "Unity prototype composite assets only; not final production slicing.",
+  "source_dir": "local draft sheet folder omitted from repo manifest",
+  "layers": {
+    "sky_layer": "sky_sunset.png",
+    "far_background_layer": "far_coast_cutout.png",
+    "bridge_midground_layer": "bridge_midground_cutout.png",
+    "road_texture": "road_asphalt_tile.png",
+    "lane_marking_strip": "lane_center_yellow_strip.png",
+    "car_rear_sprite": "car_rear_player.png",
+    "roadside_sprite_sheet_extracts": [
+      "roadside_bush_flowers.png",
+      "roadside_rock.png",
+      "roadside_cliff_edge.png",
+      "roadside_pine.png",
+      "roadside_guardrail.png"
+    ],
+    "sign_sprite_sheet_extracts": [
+      "sign_california_1.png",
+      "sign_big_sur_15.png",
+      "sign_scenic_overlook.png",
+      "sign_rest_stop.png",
+      "sign_wood_arrow.png"
+    ],
+    "weather_overlay": [
+      "weather_haze_clouds.png",
+      "weather_rain_streaks.png",
+      "weather_sun_glow.png"
+    ]
+  },
+  "source_files": {
+    "bridge": "ChatGPT Image 2026年5月16日 下午09_46_43 (8).png",
+    "weather": "ChatGPT Image 2026年5月16日 下午09_46_43 (7).png",
+    "far": "ChatGPT Image 2026年5月16日 下午09_45_09 (6).png",
+    "sky": "ChatGPT Image 2026年5月16日 下午09_46_42 (5).png",
+    "roadside_alt": "ChatGPT Image 2026年5月16日 下午09_46_40 (3).png",
+    "car": "ChatGPT Image 2026年5月16日 下午09_46_40 (2).png",
+    "road": "ChatGPT Image 2026年5月16日 下午09_46_40 (1).png",
+    "roadside": "ChatGPT Image 2026年5月16日 下午09_45_09 (3).png",
+    "sign": "ChatGPT Image 2026年5月16日 下午09_45_09 (4).png"
+  }
+}

@@ -12,3 +12,20 @@ supabase/.temp/
 .env
 .env.*
 !.env.example
+
+# Unity local/editor-generated state.
+**/Library/
+**/Temp/
+**/Obj/
+**/Logs/
+**/UserSettings/
+**/Builds/
+**/MemoryCaptures/
+*.csproj
+*.sln
+*.user
+*.pidb
+*.booproj
+
+# Local visual verification captures.
+unity-road-prototype-*.png

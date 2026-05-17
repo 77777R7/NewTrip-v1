@@ -88,6 +88,65 @@ export type WalletMutationInput = {
   idempotencyKey: string;
 };
 
+export type CurrencyReward = {
+  currency: Currency;
+  amount: number;
+};
+
+export type DailyLoginStatus = {
+  periodKey: string;
+  weekKey: string;
+  dayIndex: number;
+  alreadyClaimed: boolean;
+  claimedAt: string | null;
+  rewards: CurrencyReward[];
+};
+
+export type ClaimDailyLoginInput = {
+  idempotencyKey: string;
+};
+
+export type ClaimDailyLoginResult = DailyLoginStatus & {
+  walletBalances: WalletBalance[];
+  walletTransactions: WalletTransaction[];
+};
+
+export type QuestEventName =
+  | 'DRIVE_DISTANCE_ONLINE'
+  | 'OFFLINE_REPORT_CLAIMED'
+  | 'VEHICLE_REFUELED'
+  | 'PHOTO_TAKEN'
+  | 'ROUTE_COMPLETED';
+
+export type DailyQuest = {
+  questId: string;
+  questKey: string;
+  title: string;
+  eventName: QuestEventName;
+  periodKey: string;
+  targetValue: number;
+  progressValue: number;
+  completed: boolean;
+  claimed: boolean;
+  reward: CurrencyReward;
+};
+
+export type DailyQuestListResult = {
+  periodKey: string;
+  quests: DailyQuest[];
+};
+
+export type ClaimDailyQuestInput = {
+  questKey: string;
+  idempotencyKey: string;
+};
+
+export type ClaimDailyQuestResult = {
+  quest: DailyQuest;
+  walletBalances: WalletBalance[];
+  walletTransactions: WalletTransaction[];
+};
+
 export type RouteSegment = {
   segmentId: string;
   segmentIndex: number;
@@ -299,6 +358,10 @@ export interface GameDataStore {
   getWalletBalances(playerId: string): Promise<WalletBalance[]>;
   grantWallet(input: WalletMutationInput): Promise<WalletTransaction>;
   spendWallet(input: WalletMutationInput): Promise<WalletTransaction>;
+  getDailyLogin(identity: AuthIdentity): Promise<DailyLoginStatus>;
+  claimDailyLogin(identity: AuthIdentity, input: ClaimDailyLoginInput): Promise<ClaimDailyLoginResult>;
+  getDailyQuests(identity: AuthIdentity): Promise<DailyQuestListResult>;
+  claimDailyQuest(identity: AuthIdentity, input: ClaimDailyQuestInput): Promise<ClaimDailyQuestResult>;
   getAvailableRoutes(identity: AuthIdentity): Promise<RouteDefinition[]>;
   getRoute(identity: AuthIdentity, routeId: string): Promise<RouteDefinition | null>;
   unlockRoute(identity: AuthIdentity, input: UnlockRouteInput): Promise<RouteUnlockResult>;

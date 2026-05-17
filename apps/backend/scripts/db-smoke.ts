@@ -41,6 +41,11 @@ const migrationFile = readdirSync(migrationsDir)
 assert(Boolean(migrationFile), 'missing Day 2 base schema migration');
 
 const migrationSql = readRequired(resolve(migrationsDir, migrationFile as string)).toLowerCase();
+const allMigrationSql = readdirSync(migrationsDir)
+  .filter((fileName) => fileName.endsWith('.sql'))
+  .sort()
+  .map((fileName) => readRequired(resolve(migrationsDir, fileName)).toLowerCase())
+  .join('\n');
 const seedSql = readRequired(seedPath);
 const seedSqlLower = seedSql.toLowerCase();
 const vehicleYaml = readRequired(vehiclePath);
@@ -59,11 +64,15 @@ const requiredTables = [
   'landmarks',
   'player_unlocked_routes',
   'player_trips',
+  'daily_login_claims',
+  'quest_definitions',
+  'player_quest_progress',
+  'quest_claims',
 ];
 
 for (const tableName of requiredTables) {
-  assertIncludes(migrationSql, `create table public.${tableName}`, `missing table ${tableName}`);
-  assertIncludes(migrationSql, `alter table public.${tableName} enable row level security`, `missing RLS for ${tableName}`);
+  assert(new RegExp(`create table (if not exists )?public\\.${tableName}\\b`).test(allMigrationSql), `missing table ${tableName}`);
+  assertIncludes(allMigrationSql, `alter table public.${tableName} enable row level security`, `missing RLS for ${tableName}`);
 }
 
 assertIncludes(migrationSql, 'unique (player_id, idempotency_key)', 'wallet transaction idempotency key is required');
@@ -77,6 +86,11 @@ assertIncludes(seedSql, "'tutorial_big_sur_hwy1_001'", 'seed must include Tutori
 assertIncludes(seedSql, "'short_coast_to_town_001'", 'seed must include Short Route');
 assertIncludes(seedSql, "'coast_easy'", 'seed must include weather profile');
 assertIncludes(seedSql, "'bixby_bridge_lookout'", 'seed must include first required landmark');
+assertIncludes(seedSql, "'drive_online_distance'", 'seed must include drive online daily quest');
+assertIncludes(seedSql, "'claim_offline_report'", 'seed must include offline report daily quest');
+assertIncludes(seedSql, "'refuel_vehicle'", 'seed must include refuel daily quest');
+assertIncludes(seedSql, "'take_photo'", 'seed must include photo daily quest');
+assertIncludes(seedSql, "'complete_route'", 'seed must include route completion daily quest');
 
 const tutorialSegments = [
   [0, 0, 35],

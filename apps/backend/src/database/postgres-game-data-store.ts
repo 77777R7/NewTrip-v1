@@ -5,7 +5,12 @@ import {
   AuthIdentity,
   CURRENCIES,
   Currency,
+  CurrencyReward,
   AbandonTripInput,
+  ClaimDailyLoginInput,
+  ClaimDailyLoginResult,
+  ClaimDailyQuestInput,
+  ClaimDailyQuestResult,
   ClaimOfflineReportInput,
   ClaimOfflineReportResult,
   CompleteLandmarkInput,
@@ -17,6 +22,9 @@ import {
   GameDataStore,
   Landmark,
   OfflineReport,
+  DailyLoginStatus,
+  DailyQuest,
+  DailyQuestListResult,
   PlayerProfile,
   PlayerPhoto,
   PlayerState,
@@ -27,6 +35,7 @@ import {
   StartTripInput,
   Trip,
   UnlockRouteInput,
+  QuestEventName,
   VehicleMaintenanceInput,
   VehicleMaintenanceResult,
   WalletBalance,
@@ -40,11 +49,69 @@ import { isOnlineDriveModeUnlocked, simulateOnlineDriveTick } from '../modules/s
 import { nextTutorialStateAfterDriveTick, nextTutorialStateAfterPhoto } from '../modules/tutorial/tutorial-state';
 import { calculateVehicleMaintenance } from '../modules/vehicle-maintenance/maintenance.formulas';
 
+type DailyQuestDefinition = {
+  questId: string;
+  questKey: string;
+  title: string;
+  eventName: QuestEventName;
+  targetValue: number;
+  reward: CurrencyReward;
+  sortOrder: number;
+};
+
 const TUTORIAL_COMPLETION_REWARDS = {
   roadCoins: 150,
   travelTokens: 1,
   souvenirStamps: 1,
 };
+
+const DAILY_QUEST_DEFINITIONS: DailyQuestDefinition[] = [
+  {
+    questId: '00000000-0000-4000-8000-000000000701',
+    questKey: 'drive_online_distance',
+    title: 'Drive online',
+    eventName: 'DRIVE_DISTANCE_ONLINE',
+    targetValue: 0.25,
+    reward: { currency: 'ROAD_COINS', amount: 40 },
+    sortOrder: 1,
+  },
+  {
+    questId: '00000000-0000-4000-8000-000000000702',
+    questKey: 'claim_offline_report',
+    title: 'Claim a Travel Report',
+    eventName: 'OFFLINE_REPORT_CLAIMED',
+    targetValue: 1,
+    reward: { currency: 'TRAVEL_TOKENS', amount: 1 },
+    sortOrder: 2,
+  },
+  {
+    questId: '00000000-0000-4000-8000-000000000703',
+    questKey: 'refuel_vehicle',
+    title: 'Refuel vehicle',
+    eventName: 'VEHICLE_REFUELED',
+    targetValue: 1,
+    reward: { currency: 'ROAD_COINS', amount: 30 },
+    sortOrder: 3,
+  },
+  {
+    questId: '00000000-0000-4000-8000-000000000704',
+    questKey: 'take_photo',
+    title: 'Take a photo',
+    eventName: 'PHOTO_TAKEN',
+    targetValue: 1,
+    reward: { currency: 'ROAD_COINS', amount: 50 },
+    sortOrder: 4,
+  },
+  {
+    questId: '00000000-0000-4000-8000-000000000705',
+    questKey: 'complete_route',
+    title: 'Complete a route',
+    eventName: 'ROUTE_COMPLETED',
+    targetValue: 1,
+    reward: { currency: 'STAMP_FRAGMENTS', amount: 2 },
+    sortOrder: 5,
+  },
+];
 
 @Injectable()
 export class PostgresGameDataStore implements GameDataStore, OnModuleDestroy {
@@ -118,6 +185,240 @@ export class PostgresGameDataStore implements GameDataStore, OnModuleDestroy {
       throw new Error('Spend amount must be positive');
     }
     return this.mutateWallet(input, -input.amount);
+  }
+
+  async getDailyLogin(identity: AuthIdentity): Promise<DailyLoginStatus> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('begin');
+      const profile = await this.getOrCreatePlayerProfileInTransaction(client, identity);
+      await this.ensurePlayerDefaultsInTransaction(client, profile.playerId);
+      const status = await this.buildDailyLoginStatusInTransaction(client, profile.playerId);
+      await client.query('commit');
+      return status;
+    } catch (error) {
+      await client.query('rollback');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async claimDailyLogin(identity: AuthIdentity, input: ClaimDailyLoginInput): Promise<ClaimDailyLoginResult> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('begin');
+      const profile = await this.getOrCreatePlayerProfileInTransaction(client, identity);
+      await this.ensurePlayerDefaultsInTransaction(client, profile.playerId);
+
+      const existingForKey = await client.query(
+        `
+          select result_payload
+          from public.daily_login_claims
+          where player_id = $1 and idempotency_key = $2
+          limit 1
+          for update
+        `,
+        [profile.playerId, input.idempotencyKey],
+      );
+      if (existingForKey.rowCount) {
+        await client.query('commit');
+        return existingForKey.rows[0].result_payload as ClaimDailyLoginResult;
+      }
+
+      const now = new Date();
+      const periodKey = this.periodKeyFor(now);
+      const weekKey = this.weekKeyFor(now);
+      const existingClaim = await client.query(
+        `
+          select claim_id
+          from public.daily_login_claims
+          where player_id = $1 and period_key = $2
+          limit 1
+          for update
+        `,
+        [profile.playerId, periodKey],
+      );
+      if (existingClaim.rowCount) {
+        throw new Error('DAILY_LOGIN_ALREADY_CLAIMED');
+      }
+
+      const dayIndex = await this.dailyLoginDayIndexInTransaction(client, profile.playerId, weekKey);
+      const rewards = await this.dailyLoginRewardsForInTransaction(client, profile.playerId, weekKey, dayIndex);
+      const walletTransactions: WalletTransaction[] = [];
+      for (const reward of rewards) {
+        walletTransactions.push(
+          await this.mutateWalletInTransaction(client, {
+            playerId: profile.playerId,
+            currency: reward.currency,
+            amount: reward.amount,
+            reason: 'DAILY_LOGIN_REWARD',
+            sourceType: 'DAILY_LOGIN',
+            sourceId: periodKey,
+            idempotencyKey: `${input.idempotencyKey}:${reward.currency.toLowerCase()}`,
+          }, reward.amount),
+        );
+      }
+
+      const result: ClaimDailyLoginResult = {
+        periodKey,
+        weekKey,
+        dayIndex,
+        alreadyClaimed: true,
+        claimedAt: now.toISOString(),
+        rewards,
+        walletBalances: await this.getWalletBalancesInTransaction(client, profile.playerId),
+        walletTransactions,
+      };
+
+      await client.query(
+        `
+          insert into public.daily_login_claims (
+            player_id,
+            period_key,
+            week_key,
+            day_index,
+            idempotency_key,
+            rewards,
+            result_payload
+          )
+          values ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb)
+        `,
+        [
+          profile.playerId,
+          periodKey,
+          weekKey,
+          dayIndex,
+          input.idempotencyKey,
+          JSON.stringify(rewards),
+          JSON.stringify(result),
+        ],
+      );
+      await this.touchPlayerLastSeenInTransaction(client, profile.playerId);
+      await client.query('commit');
+      return result;
+    } catch (error) {
+      await client.query('rollback');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async getDailyQuests(identity: AuthIdentity): Promise<DailyQuestListResult> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('begin');
+      const profile = await this.getOrCreatePlayerProfileInTransaction(client, identity);
+      await this.ensurePlayerDefaultsInTransaction(client, profile.playerId);
+      const periodKey = this.periodKeyFor(new Date());
+      const quests = await this.buildDailyQuestsInTransaction(client, profile.playerId, periodKey);
+      await client.query('commit');
+      return { periodKey, quests };
+    } catch (error) {
+      await client.query('rollback');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async claimDailyQuest(identity: AuthIdentity, input: ClaimDailyQuestInput): Promise<ClaimDailyQuestResult> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('begin');
+      const profile = await this.getOrCreatePlayerProfileInTransaction(client, identity);
+      await this.ensurePlayerDefaultsInTransaction(client, profile.playerId);
+
+      const existingForKey = await client.query(
+        `
+          select result_payload
+          from public.quest_claims
+          where player_id = $1 and idempotency_key = $2
+          limit 1
+          for update
+        `,
+        [profile.playerId, input.idempotencyKey],
+      );
+      if (existingForKey.rowCount) {
+        await client.query('commit');
+        return existingForKey.rows[0].result_payload as ClaimDailyQuestResult;
+      }
+
+      const definition = await this.getQuestDefinitionInTransaction(client, input.questKey);
+      if (!definition) {
+        throw new Error('QUEST_NOT_FOUND');
+      }
+
+      const periodKey = this.periodKeyFor(new Date());
+      const quest = await this.buildDailyQuestInTransaction(client, profile.playerId, periodKey, definition);
+      if (!quest.completed) {
+        throw new Error('QUEST_INCOMPLETE');
+      }
+
+      const existingClaim = await client.query(
+        `
+          select claim_id
+          from public.quest_claims
+          where player_id = $1 and quest_def_id = $2 and period_key = $3
+          limit 1
+          for update
+        `,
+        [profile.playerId, definition.questId, periodKey],
+      );
+      if (existingClaim.rowCount) {
+        throw new Error('QUEST_ALREADY_CLAIMED');
+      }
+
+      const rewardTx = await this.mutateWalletInTransaction(client, {
+        playerId: profile.playerId,
+        currency: definition.reward.currency,
+        amount: definition.reward.amount,
+        reason: 'QUEST_REWARD',
+        sourceType: 'DAILY_QUEST',
+        sourceId: definition.questKey,
+        idempotencyKey: `${input.idempotencyKey}:reward`,
+      }, definition.reward.amount);
+
+      const result: ClaimDailyQuestResult = {
+        quest: {
+          ...quest,
+          claimed: true,
+        },
+        walletBalances: await this.getWalletBalancesInTransaction(client, profile.playerId),
+        walletTransactions: [rewardTx],
+      };
+
+      await client.query(
+        `
+          insert into public.quest_claims (
+            player_id,
+            quest_def_id,
+            period_key,
+            idempotency_key,
+            reward_transaction_id,
+            result_payload
+          )
+          values ($1, $2, $3, $4, $5, $6::jsonb)
+        `,
+        [
+          profile.playerId,
+          definition.questId,
+          periodKey,
+          input.idempotencyKey,
+          rewardTx.transactionId,
+          JSON.stringify(result),
+        ],
+      );
+      await this.touchPlayerLastSeenInTransaction(client, profile.playerId);
+      await client.query('commit');
+      return result;
+    } catch (error) {
+      await client.query('rollback');
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 
   async getAvailableRoutes(identity: AuthIdentity): Promise<RouteDefinition[]> {
@@ -806,6 +1107,9 @@ export class PostgresGameDataStore implements GameDataStore, OnModuleDestroy {
           },
         });
       }
+      if (simulation.distanceGainKm > 0) {
+        await this.recordQuestEventInTransaction(client, profile.playerId, 'DRIVE_DISTANCE_ONLINE', simulation.distanceGainKm);
+      }
 
       await client.query(
         `
@@ -1037,6 +1341,7 @@ export class PostgresGameDataStore implements GameDataStore, OnModuleDestroy {
           is_first_photo: true,
         },
       });
+      await this.recordQuestEventInTransaction(client, profile.playerId, 'PHOTO_TAKEN', 1);
 
       const updatedProfile = {
         ...profile,
@@ -1153,6 +1458,7 @@ export class PostgresGameDataStore implements GameDataStore, OnModuleDestroy {
           travel_tokens: report.travelTokensPending,
         },
       });
+      await this.recordQuestEventInTransaction(client, profile.playerId, 'OFFLINE_REPORT_CLAIMED', 1);
 
       const result: ClaimOfflineReportResult = {
         report: this.toOfflineReport(updatedReport.rows[0]),
@@ -1340,6 +1646,7 @@ export class PostgresGameDataStore implements GameDataStore, OnModuleDestroy {
           souvenir_stamps: rewards.souvenirStamps,
         },
       });
+      await this.recordQuestEventInTransaction(client, profile.playerId, 'ROUTE_COMPLETED', 1);
 
       const result: CompleteRouteResult = {
         trip: {
@@ -1516,6 +1823,9 @@ export class PostgresGameDataStore implements GameDataStore, OnModuleDestroy {
           restored_amount: maintenance.restoredAmount,
         },
       });
+      if (input.action === 'REFUEL') {
+        await this.recordQuestEventInTransaction(client, profile.playerId, 'VEHICLE_REFUELED', 1);
+      }
 
       await client.query('commit');
       return result;
@@ -1524,6 +1834,241 @@ export class PostgresGameDataStore implements GameDataStore, OnModuleDestroy {
       throw error;
     } finally {
       client.release();
+    }
+  }
+
+  private async buildDailyLoginStatusInTransaction(
+    client: PoolClient,
+    playerId: string,
+  ): Promise<DailyLoginStatus> {
+    const now = new Date();
+    const periodKey = this.periodKeyFor(now);
+    const weekKey = this.weekKeyFor(now);
+    const existingClaim = await client.query(
+      `
+        select *
+        from public.daily_login_claims
+        where player_id = $1 and period_key = $2
+        limit 1
+      `,
+      [playerId, periodKey],
+    );
+    if (existingClaim.rowCount) {
+      const row = existingClaim.rows[0];
+      return {
+        periodKey,
+        weekKey,
+        dayIndex: Number(row.day_index),
+        alreadyClaimed: true,
+        claimedAt: row.claimed_at.toISOString(),
+        rewards: row.rewards as CurrencyReward[],
+      };
+    }
+
+    const dayIndex = await this.dailyLoginDayIndexInTransaction(client, playerId, weekKey);
+    return {
+      periodKey,
+      weekKey,
+      dayIndex,
+      alreadyClaimed: false,
+      claimedAt: null,
+      rewards: await this.dailyLoginRewardsForInTransaction(client, playerId, weekKey, dayIndex),
+    };
+  }
+
+  private async dailyLoginDayIndexInTransaction(
+    client: PoolClient,
+    playerId: string,
+    weekKey: string,
+  ): Promise<number> {
+    const count = await client.query(
+      `
+        select count(*)::int as count
+        from public.daily_login_claims
+        where player_id = $1 and week_key = $2
+      `,
+      [playerId, weekKey],
+    );
+    return Math.min(7, Number(count.rows[0].count) + 1);
+  }
+
+  private async dailyLoginRewardsForInTransaction(
+    client: PoolClient,
+    playerId: string,
+    weekKey: string,
+    dayIndex: number,
+  ): Promise<CurrencyReward[]> {
+    const rewardTable: Record<number, CurrencyReward[]> = {
+      1: [
+        { currency: 'STAMP_FRAGMENTS', amount: 2 },
+        { currency: 'ROAD_COINS', amount: 50 },
+      ],
+      2: [
+        { currency: 'STAMP_FRAGMENTS', amount: 2 },
+        { currency: 'TRAVEL_TOKENS', amount: 1 },
+      ],
+      3: [
+        { currency: 'STAMP_FRAGMENTS', amount: 3 },
+        { currency: 'ROAD_COINS', amount: 75 },
+      ],
+      4: [
+        { currency: 'STAMP_FRAGMENTS', amount: 3 },
+        { currency: 'TRAVEL_TOKENS', amount: 1 },
+      ],
+      5: [
+        { currency: 'STAMP_FRAGMENTS', amount: 4 },
+        { currency: 'ROAD_COINS', amount: 100 },
+      ],
+      6: [
+        { currency: 'STAMP_FRAGMENTS', amount: 4 },
+        { currency: 'TRAVEL_TOKENS', amount: 1 },
+      ],
+      7: [
+        { currency: 'SOUVENIR_STAMPS', amount: 1 },
+        { currency: 'ROAD_COINS', amount: 150 },
+      ],
+    };
+    const rewards = [...(rewardTable[dayIndex] ?? rewardTable[7])];
+    const stampClaim = await client.query(
+      `
+        select claim_id
+        from public.daily_login_claims
+        where player_id = $1
+          and week_key = $2
+          and rewards @> '[{"currency":"SOUVENIR_STAMPS"}]'::jsonb
+        limit 1
+      `,
+      [playerId, weekKey],
+    );
+    return stampClaim.rowCount
+      ? rewards.filter((reward) => reward.currency !== 'SOUVENIR_STAMPS')
+      : rewards;
+  }
+
+  private async getQuestDefinitionInTransaction(
+    client: PoolClient,
+    questKey: string,
+  ): Promise<DailyQuestDefinition | null> {
+    const result = await client.query(
+      `
+        select *
+        from public.quest_definitions
+        where quest_key = $1 and is_active = true
+        limit 1
+      `,
+      [questKey],
+    );
+    return result.rowCount ? this.toDailyQuestDefinition(result.rows[0]) : null;
+  }
+
+  private async buildDailyQuestsInTransaction(
+    client: PoolClient,
+    playerId: string,
+    periodKey: string,
+  ): Promise<DailyQuest[]> {
+    const definitions = await client.query(
+      `
+        select *
+        from public.quest_definitions
+        where is_active = true
+        order by sort_order asc
+      `,
+    );
+    return Promise.all(
+      definitions.rows.map((row) => this.buildDailyQuestInTransaction(
+        client,
+        playerId,
+        periodKey,
+        this.toDailyQuestDefinition(row),
+      )),
+    );
+  }
+
+  private async buildDailyQuestInTransaction(
+    client: PoolClient,
+    playerId: string,
+    periodKey: string,
+    definition: DailyQuestDefinition,
+  ): Promise<DailyQuest> {
+    const progress = await client.query(
+      `
+        select progress_value
+        from public.player_quest_progress
+        where player_id = $1 and quest_def_id = $2 and period_key = $3
+        limit 1
+      `,
+      [playerId, definition.questId, periodKey],
+    );
+    const claim = await client.query(
+      `
+        select claim_id
+        from public.quest_claims
+        where player_id = $1 and quest_def_id = $2 and period_key = $3
+        limit 1
+      `,
+      [playerId, definition.questId, periodKey],
+    );
+    const progressValue = progress.rowCount ? Number(progress.rows[0].progress_value) : 0;
+    return {
+      questId: definition.questId,
+      questKey: definition.questKey,
+      title: definition.title,
+      eventName: definition.eventName,
+      periodKey,
+      targetValue: definition.targetValue,
+      progressValue,
+      completed: progressValue >= definition.targetValue,
+      claimed: Boolean(claim.rowCount),
+      reward: definition.reward,
+    };
+  }
+
+  private async recordQuestEventInTransaction(
+    client: PoolClient,
+    playerId: string,
+    eventName: QuestEventName,
+    amount: number,
+  ): Promise<void> {
+    const periodKey = this.periodKeyFor(new Date());
+    const definitions = await client.query(
+      `
+        select *
+        from public.quest_definitions
+        where event_name = $1 and is_active = true
+      `,
+      [eventName],
+    );
+    for (const row of definitions.rows) {
+      const definition = this.toDailyQuestDefinition(row);
+      await client.query(
+        `
+          insert into public.player_quest_progress (
+            player_id,
+            quest_def_id,
+            period_key,
+            progress_value,
+            completed_at
+          )
+          values (
+            $1,
+            $2,
+            $3,
+            $4,
+            case when $4 >= $5 then now() else null end
+          )
+          on conflict (player_id, quest_def_id, period_key) do update set
+            progress_value = public.player_quest_progress.progress_value + excluded.progress_value,
+            completed_at = coalesce(
+              public.player_quest_progress.completed_at,
+              case
+                when public.player_quest_progress.progress_value + excluded.progress_value >= $5 then now()
+                else null
+              end
+            ),
+            updated_at = now()
+        `,
+        [playerId, definition.questId, periodKey, amount, definition.targetValue],
+      );
     }
   }
 
@@ -2171,6 +2716,34 @@ export class PostgresGameDataStore implements GameDataStore, OnModuleDestroy {
       CLEAN: 'VEHICLE_CLEAN',
       REPAIR: 'VEHICLE_REPAIR',
     }[action];
+  }
+
+  private periodKeyFor(date: Date): string {
+    return date.toISOString().slice(0, 10);
+  }
+
+  private weekKeyFor(date: Date): string {
+    const utcDate = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+    const dayNumber = utcDate.getUTCDay() || 7;
+    utcDate.setUTCDate(utcDate.getUTCDate() + 4 - dayNumber);
+    const yearStart = new Date(Date.UTC(utcDate.getUTCFullYear(), 0, 1));
+    const weekNumber = Math.ceil(((utcDate.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+    return `${utcDate.getUTCFullYear()}-W${String(weekNumber).padStart(2, '0')}`;
+  }
+
+  private toDailyQuestDefinition(row: QueryResultRow): DailyQuestDefinition {
+    return {
+      questId: row.quest_def_id,
+      questKey: row.quest_key,
+      title: row.title,
+      eventName: row.event_name as QuestEventName,
+      targetValue: Number(row.target_value),
+      reward: {
+        currency: row.reward_currency as Currency,
+        amount: Number(row.reward_amount),
+      },
+      sortOrder: Number(row.sort_order),
+    };
   }
 
   private toPlayerProfile(row: QueryResultRow): PlayerProfile {

@@ -1,8 +1,10 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { DailyLoginModule } from './daily-login/daily-login.module';
 import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './health/health.module';
 import { PlayerModule } from './player/player.module';
+import { QuestsModule } from './quests/quests.module';
 import { RoutesModule } from './routes/routes.module';
 import { TripModule } from './trip/trip.module';
 import { VehicleModule } from './vehicle/vehicle.module';
@@ -17,6 +19,8 @@ import { WalletModule } from './wallet/wallet.module';
     HealthModule,
     WalletModule,
     PlayerModule,
+    DailyLoginModule,
+    QuestsModule,
     RoutesModule,
     TripModule,
     VehicleModule,

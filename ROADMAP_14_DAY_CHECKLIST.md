@@ -442,35 +442,35 @@ Goal: add light daily goals without replacing the core travel loop.
 
 Daily login:
 
-- [ ] `GET /daily-login`.
-- [ ] `POST /daily-login/claim`.
-- [ ] Day 1 gives Stamp Fragments and Road Coins.
-- [ ] Day 2 gives Stamp Fragments and Travel Token.
-- [ ] Day 7 gives 1 Souvenir Stamp, max once per week.
+- [x] `GET /daily-login`.
+- [x] `POST /daily-login/claim`.
+- [x] Day 1 gives Stamp Fragments and Road Coins.
+- [x] Day 2 gives Stamp Fragments and Travel Token.
+- [x] Day 7 gives 1 Souvenir Stamp, max once per week.
 
 Quest events:
 
-- [ ] `DRIVE_DISTANCE_ONLINE`.
-- [ ] `OFFLINE_REPORT_CLAIMED`.
-- [ ] `VEHICLE_REFUELED`.
-- [ ] `PHOTO_TAKEN`.
-- [ ] `ROUTE_COMPLETED`.
+- [x] `DRIVE_DISTANCE_ONLINE`.
+- [x] `OFFLINE_REPORT_CLAIMED`.
+- [x] `VEHICLE_REFUELED`.
+- [x] `PHOTO_TAKEN`.
+- [x] `ROUTE_COMPLETED`.
 
 Quest APIs:
 
-- [ ] `GET /quests/daily`.
-- [ ] `POST /quests/claim`.
+- [x] `GET /quests/daily`.
+- [x] `POST /quests/claim`.
 
 Acceptance:
 
-- [ ] Daily login can be claimed once per day.
-- [ ] Day 7 Stamp is max once per week.
-- [ ] Drive tick updates driving task progress.
-- [ ] Claim offline report updates task progress.
-- [ ] Photo updates task progress.
-- [ ] Completed task can be claimed.
-- [ ] Task rewards write wallet transactions.
-- [ ] `period_key`, daily claim idempotency, quest claim idempotency, and incomplete-quest rejection tests pass.
+- [x] Daily login can be claimed once per day.
+- [x] Day 7 Stamp is max once per week.
+- [x] Drive tick updates driving task progress.
+- [x] Claim offline report updates task progress.
+- [x] Photo updates task progress.
+- [x] Completed task can be claimed.
+- [x] Task rewards write wallet transactions.
+- [x] `period_key`, daily claim idempotency, quest claim idempotency, and incomplete-quest rejection tests pass.
 
 ## Day 12: Admin Config, Analytics, And Risk
 

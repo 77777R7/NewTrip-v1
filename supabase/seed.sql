@@ -262,3 +262,80 @@ on conflict (landmark_id) do update set
   photo_card_key = excluded.photo_card_key,
   album_group_id = excluded.album_group_id,
   metadata = excluded.metadata;
+
+insert into public.quest_definitions (
+  quest_def_id,
+  quest_key,
+  title,
+  event_name,
+  target_value,
+  reward_currency,
+  reward_amount,
+  sort_order,
+  metadata
+) values
+  (
+    '00000000-0000-4000-8000-000000000701',
+    'drive_online_distance',
+    'Drive online',
+    'DRIVE_DISTANCE_ONLINE',
+    0.25,
+    'ROAD_COINS',
+    40,
+    1,
+    '{"v1_day": 11}'::jsonb
+  ),
+  (
+    '00000000-0000-4000-8000-000000000702',
+    'claim_offline_report',
+    'Claim a Travel Report',
+    'OFFLINE_REPORT_CLAIMED',
+    1,
+    'TRAVEL_TOKENS',
+    1,
+    2,
+    '{"v1_day": 11}'::jsonb
+  ),
+  (
+    '00000000-0000-4000-8000-000000000703',
+    'refuel_vehicle',
+    'Refuel vehicle',
+    'VEHICLE_REFUELED',
+    1,
+    'ROAD_COINS',
+    30,
+    3,
+    '{"v1_day": 11}'::jsonb
+  ),
+  (
+    '00000000-0000-4000-8000-000000000704',
+    'take_photo',
+    'Take a photo',
+    'PHOTO_TAKEN',
+    1,
+    'ROAD_COINS',
+    50,
+    4,
+    '{"v1_day": 11}'::jsonb
+  ),
+  (
+    '00000000-0000-4000-8000-000000000705',
+    'complete_route',
+    'Complete a route',
+    'ROUTE_COMPLETED',
+    1,
+    'STAMP_FRAGMENTS',
+    2,
+    5,
+    '{"v1_day": 11}'::jsonb
+  )
+on conflict (quest_key) do update set
+  title = excluded.title,
+  event_name = excluded.event_name,
+  target_value = excluded.target_value,
+  reward_currency = excluded.reward_currency,
+  reward_amount = excluded.reward_amount,
+  sort_order = excluded.sort_order,
+  is_active = true,
+  metadata = excluded.metadata,
+  updated_at = now();

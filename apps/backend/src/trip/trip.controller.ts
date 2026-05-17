@@ -23,6 +23,13 @@ type CompleteLandmarkBody = {
   idempotency_key?: string;
 };
 
+type ClaimOfflineReportBody = {
+  reportId?: string;
+  report_id?: string;
+  idempotencyKey?: string;
+  idempotency_key?: string;
+};
+
 @Controller('trip')
 export class TripController {
   constructor(private readonly tripService: TripService) {}
@@ -48,6 +55,14 @@ export class TripController {
       tripId: body.tripId ?? body.trip_id ?? '',
       landmarkId: body.landmarkId ?? body.landmark_id ?? '',
       action: body.action ?? 'TAKE_PHOTO',
+      idempotencyKey: body.idempotencyKey ?? body.idempotency_key ?? '',
+    });
+  }
+
+  @Post('claim-offline-report')
+  claimOfflineReport(@Req() request: Request, @Body() body: ClaimOfflineReportBody) {
+    return this.tripService.claimOfflineReport(getRequestAuthIdentity(request), {
+      reportId: body.reportId ?? body.report_id ?? '',
       idempotencyKey: body.idempotencyKey ?? body.idempotency_key ?? '',
     });
   }

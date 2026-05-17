@@ -25,5 +25,6 @@ export const DEFAULT_SIMULATION_CONFIG = {
   offline: {
     baseOfflineSpeedKmph: 30,
     maxOfflineHours: 8,
+    minOfflineReportSeconds: 60,
   },
 } as const;

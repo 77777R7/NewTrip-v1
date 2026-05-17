@@ -6,12 +6,15 @@ import {
   CURRENCIES,
   Currency,
   AbandonTripInput,
+  ClaimOfflineReportInput,
+  ClaimOfflineReportResult,
   CompleteLandmarkInput,
   CompleteLandmarkResult,
   DriveTickInput,
   DriveTickResult,
   GameDataStore,
   Landmark,
+  OfflineReport,
   PlayerProfile,
   PlayerPhoto,
   PlayerState,
@@ -25,6 +28,8 @@ import {
   WalletTransaction,
 } from './game-data-store';
 import { calculatePhotoQualityScore } from '../modules/landmark/photo-quality';
+import { simulateOfflineProgress } from '../modules/simulation/offline-progress';
+import { DEFAULT_SIMULATION_CONFIG } from '../modules/simulation/simulation.constants';
 import { isOnlineDriveModeUnlocked, simulateOnlineDriveTick } from '../modules/simulation/online-drive-tick';
 import { nextTutorialStateAfterDriveTick, nextTutorialStateAfterPhoto } from '../modules/tutorial/tutorial-state';
 
@@ -53,9 +58,14 @@ export class PostgresGameDataStore implements GameDataStore, OnModuleDestroy {
       await client.query('begin');
       const profile = await this.getOrCreatePlayerProfileInTransaction(client, identity);
       await this.ensurePlayerDefaultsInTransaction(client, profile.playerId);
+      const pendingOfflineReport = await this.getOrCreatePendingOfflineReportInTransaction(client, profile);
+      await this.touchPlayerLastSeenInTransaction(client, profile.playerId);
       const state = await this.loadPlayerStateInTransaction(client, profile.playerId);
       await client.query('commit');
-      return state;
+      return {
+        ...state,
+        pendingOfflineReport,
+      };
     } catch (error) {
       await client.query('rollback');
       throw error;
@@ -901,6 +911,328 @@ export class PostgresGameDataStore implements GameDataStore, OnModuleDestroy {
     }
   }
 
+  async claimOfflineReport(identity: AuthIdentity, input: ClaimOfflineReportInput): Promise<ClaimOfflineReportResult> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('begin');
+      const profile = await this.getOrCreatePlayerProfileInTransaction(client, identity);
+
+      const reportResult = await client.query(
+        `
+          select *
+          from public.offline_reports
+          where player_id = $1 and report_id = $2
+          for update
+        `,
+        [profile.playerId, input.reportId],
+      );
+      if (!reportResult.rowCount) {
+        throw new Error('REPORT_NOT_FOUND');
+      }
+
+      const report = this.toOfflineReport(reportResult.rows[0]);
+      if (report.claimed) {
+        if (report.claimIdempotencyKey !== input.idempotencyKey) {
+          throw new Error('REPORT_ALREADY_CLAIMED');
+        }
+        const walletTransactions = await this.getWalletTransactionsByKeysInTransaction(client, profile.playerId, [
+          `${input.idempotencyKey}:road_coins`,
+          `${input.idempotencyKey}:travel_tokens`,
+        ]);
+        const walletBalances = await this.getWalletBalancesInTransaction(client, profile.playerId);
+        await client.query('commit');
+        return {
+          report,
+          walletBalances,
+          walletTransactions,
+        };
+      }
+
+      const walletTransactions: WalletTransaction[] = [];
+      if (report.roadCoinsPending > 0) {
+        walletTransactions.push(
+          await this.mutateWalletInTransaction(client, {
+            playerId: profile.playerId,
+            currency: 'ROAD_COINS',
+            amount: report.roadCoinsPending,
+            reason: 'OFFLINE_REPORT_CLAIM',
+            sourceType: 'OFFLINE_REPORT',
+            sourceId: report.reportId,
+            idempotencyKey: `${input.idempotencyKey}:road_coins`,
+          }, report.roadCoinsPending),
+        );
+      }
+      if (report.travelTokensPending > 0) {
+        walletTransactions.push(
+          await this.mutateWalletInTransaction(client, {
+            playerId: profile.playerId,
+            currency: 'TRAVEL_TOKENS',
+            amount: report.travelTokensPending,
+            reason: 'OFFLINE_REPORT_CLAIM',
+            sourceType: 'OFFLINE_REPORT',
+            sourceId: report.reportId,
+            idempotencyKey: `${input.idempotencyKey}:travel_tokens`,
+          }, report.travelTokensPending),
+        );
+      }
+
+      const updatedReport = await client.query(
+        `
+          update public.offline_reports
+          set claimed = true,
+              claimed_at = now(),
+              claim_idempotency_key = $2
+          where report_id = $1
+          returning *
+        `,
+        [report.reportId, input.idempotencyKey],
+      );
+
+      await this.insertAnalyticsEventInTransaction(client, {
+        playerId: profile.playerId,
+        eventName: 'offline_report_claimed',
+        sourceType: 'OFFLINE_REPORT',
+        sourceId: report.reportId,
+        payload: {
+          trip_id: report.tripId,
+          distance_travelled_km: report.distanceTravelledKm,
+          road_coins: report.roadCoinsPending,
+          travel_tokens: report.travelTokensPending,
+        },
+      });
+
+      const result: ClaimOfflineReportResult = {
+        report: this.toOfflineReport(updatedReport.rows[0]),
+        walletBalances: await this.getWalletBalancesInTransaction(client, profile.playerId),
+        walletTransactions,
+      };
+
+      await client.query('commit');
+      return result;
+    } catch (error) {
+      await client.query('rollback');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  private async getOrCreatePendingOfflineReportInTransaction(
+    client: PoolClient,
+    profile: PlayerProfile,
+  ): Promise<OfflineReport | null> {
+    const pendingReport = await client.query(
+      `
+        select *
+        from public.offline_reports
+        where player_id = $1 and claimed = false
+        order by generated_at desc
+        limit 1
+      `,
+      [profile.playerId],
+    );
+    if (pendingReport.rowCount) {
+      return this.toOfflineReport(pendingReport.rows[0]);
+    }
+
+    const tripResult = await client.query(
+      `
+        select *
+        from public.player_trips
+        where player_id = $1 and status = 'ACTIVE'
+        order by started_at desc
+        limit 1
+        for update
+      `,
+      [profile.playerId],
+    );
+    if (!tripResult.rowCount) {
+      return null;
+    }
+
+    const trip = this.toTrip(tripResult.rows[0]);
+    const vehicleResult = await client.query(
+      `
+        select
+          pv.*,
+          vd.vehicle_key,
+          vd.display_name,
+          vd.base_speed_kmph,
+          vd.fuel_capacity,
+          vd.fuel_consumption_per_km,
+          vd.durability_loss_per_km,
+          vd.cleanliness_loss_per_km,
+          vd.offline_efficiency,
+          vd.weather_resistance
+        from public.player_vehicles pv
+        join public.vehicle_definitions vd on vd.vehicle_def_id = pv.vehicle_def_id
+        where pv.player_id = $1 and pv.player_vehicle_id = $2
+        for update
+      `,
+      [profile.playerId, trip.playerVehicleId],
+    );
+    if (!vehicleResult.rowCount) {
+      return null;
+    }
+
+    const route = await this.getRouteForTripInTransaction(client, profile.playerId, trip.routeId);
+    if (!route) {
+      return null;
+    }
+
+    const completedLandmarks = await client.query(
+      `
+        select landmark_id
+        from public.player_photos
+        where player_id = $1 and is_first_photo = true
+      `,
+      [profile.playerId],
+    );
+    const completedLandmarkIds = new Set(completedLandmarks.rows.map((row) => row.landmark_id));
+    const now = new Date();
+    const vehicle = this.toPlayerVehicle(vehicleResult.rows[0]);
+    const simulation = simulateOfflineProgress({
+      now,
+      lastSeenAt: new Date(profile.lastSeenAt),
+      lastSimulatedAt: new Date(trip.lastSimulatedAt),
+      currentDistanceKm: trip.currentDistanceKm,
+      elapsedRealSeconds: trip.elapsedRealSeconds,
+      previousOfflineTokenMeterKm: trip.offlineTokenMeterKm,
+      routeTotalDistanceKm: route.totalDistanceKm,
+      routeRewardMultiplier: route.rewardMultiplier,
+      vehicle,
+      segments: route.segments ?? [],
+      landmarks: (route.landmarks ?? []).map((landmark) => ({
+        landmarkId: landmark.landmarkId,
+        distanceKm: landmark.distanceKm,
+        requiredStop: landmark.requiredStop,
+        completed: completedLandmarkIds.has(landmark.landmarkId),
+      })),
+    });
+    if (simulation.offlineSeconds < DEFAULT_SIMULATION_CONFIG.offline.minOfflineReportSeconds) {
+      return null;
+    }
+
+    await client.query(
+      `
+        update public.player_trips
+        set current_distance_km = $2,
+            elapsed_real_seconds = $3,
+            offline_token_meter_km = $4,
+            last_simulated_at = $5,
+            status = $6,
+            forced_stop_reason = $7
+        where trip_id = $1
+      `,
+      [
+        trip.tripId,
+        simulation.finalDistanceKm,
+        simulation.updatedElapsedRealSeconds,
+        simulation.updatedOfflineTokenMeterKm,
+        now.toISOString(),
+        simulation.updatedTripStatus,
+        simulation.forcedStopReason,
+      ],
+    );
+    await client.query(
+      `
+        update public.player_vehicles
+        set current_fuel = $2,
+            current_cleanliness = $3,
+            current_durability = $4,
+            total_distance_km = total_distance_km + $5,
+            version = version + 1
+        where player_vehicle_id = $1
+      `,
+      [
+        vehicle.playerVehicleId,
+        simulation.updatedFuel,
+        simulation.updatedCleanliness,
+        simulation.updatedDurability,
+        simulation.distanceTravelledKm,
+      ],
+    );
+
+    if (simulation.forcedStopReason === 'LANDMARK_REQUIRED') {
+      const nextTutorialState = nextTutorialStateAfterDriveTick({
+        currentState: profile.tutorialState,
+        mode: 'HOLD_TO_DRIVE',
+        distanceGainKm: simulation.distanceTravelledKm,
+        finalDistanceKm: simulation.finalDistanceKm,
+        forcedStopReason: simulation.forcedStopReason,
+      });
+      if (nextTutorialState !== profile.tutorialState) {
+        await client.query(
+          `
+            update public.players
+            set tutorial_state = $2, updated_at = now()
+            where player_id = $1
+          `,
+          [profile.playerId, nextTutorialState],
+        );
+      }
+    }
+
+    const landmark = simulation.landmarkId
+      ? (route.landmarks ?? []).find((candidate) => candidate.landmarkId === simulation.landmarkId)
+      : undefined;
+    const insertedReport = await client.query(
+      `
+        insert into public.offline_reports (
+          player_id,
+          trip_id,
+          offline_seconds,
+          distance_travelled_km,
+          road_coins_pending,
+          travel_tokens_pending,
+          fuel_used,
+          cleanliness_loss,
+          durability_loss,
+          weather_summary,
+          landmark_reached,
+          forced_stop_reason
+        )
+        values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11::jsonb, $12)
+        returning *
+      `,
+      [
+        profile.playerId,
+        trip.tripId,
+        simulation.offlineSeconds,
+        simulation.distanceTravelledKm,
+        simulation.rewards.roadCoins,
+        simulation.rewards.travelTokens,
+        simulation.fuelUsed,
+        simulation.cleanlinessLoss,
+        simulation.durabilityLoss,
+        JSON.stringify({ weather: 'sunny' }),
+        landmark
+          ? JSON.stringify({
+              landmarkId: landmark.landmarkId,
+              landmarkKey: landmark.landmarkKey,
+              name: landmark.name,
+            })
+          : null,
+        simulation.forcedStopReason,
+      ],
+    );
+    const report = this.toOfflineReport(insertedReport.rows[0]);
+    await this.insertAnalyticsEventInTransaction(client, {
+      playerId: profile.playerId,
+      eventName: 'offline_report_generated',
+      sourceType: 'OFFLINE_REPORT',
+      sourceId: report.reportId,
+      payload: {
+        trip_id: report.tripId,
+        offline_seconds: report.offlineSeconds,
+        distance_travelled_km: report.distanceTravelledKm,
+        forced_stop_reason: report.forcedStopReason,
+      },
+    });
+
+    return report;
+  }
+
   private async mutateWallet(input: WalletMutationInput, signedAmount: number): Promise<WalletTransaction> {
     const client = await this.pool.connect();
     try {
@@ -1012,6 +1344,35 @@ export class PostgresGameDataStore implements GameDataStore, OnModuleDestroy {
     );
 
     return result.rows.map((row) => this.toWalletBalance(row));
+  }
+
+  private async getWalletTransactionsByKeysInTransaction(
+    client: PoolClient,
+    playerId: string,
+    idempotencyKeys: string[],
+  ): Promise<WalletTransaction[]> {
+    const result = await client.query(
+      `
+        select *
+        from public.wallet_transactions
+        where player_id = $1 and idempotency_key = any($2::text[])
+        order by created_at asc
+      `,
+      [playerId, idempotencyKeys],
+    );
+
+    return result.rows.map((row) => this.toWalletTransaction(row));
+  }
+
+  private async touchPlayerLastSeenInTransaction(client: PoolClient, playerId: string): Promise<void> {
+    await client.query(
+      `
+        update public.players
+        set last_seen_at = now(), updated_at = now()
+        where player_id = $1
+      `,
+      [playerId],
+    );
   }
 
   private async insertAnalyticsEventInTransaction(
@@ -1173,6 +1534,7 @@ export class PostgresGameDataStore implements GameDataStore, OnModuleDestroy {
       profile: this.toPlayerProfile(profileResult.rows[0]),
       walletBalances: balancesResult.rows.map((row) => this.toWalletBalance(row)),
       vehicles: vehiclesResult.rows.map((row) => this.toPlayerVehicle(row)),
+      pendingOfflineReport: null,
     };
   }
 
@@ -1302,6 +1664,7 @@ export class PostgresGameDataStore implements GameDataStore, OnModuleDestroy {
       timezone: row.timezone,
       tutorialState: row.tutorial_state,
       currentVehicleId: row.current_vehicle_id,
+      lastSeenAt: row.last_seen_at.toISOString(),
       createdAt: row.created_at.toISOString(),
       updatedAt: row.updated_at.toISOString(),
     };
@@ -1416,6 +1779,28 @@ export class PostgresGameDataStore implements GameDataStore, OnModuleDestroy {
       isFirstPhoto: Boolean(row.is_first_photo),
       rewardTxId: row.reward_tx_id,
       takenAt: row.taken_at.toISOString(),
+    };
+  }
+
+  private toOfflineReport(row: QueryResultRow): OfflineReport {
+    return {
+      reportId: row.report_id,
+      playerId: row.player_id,
+      tripId: row.trip_id,
+      generatedAt: row.generated_at.toISOString(),
+      offlineSeconds: Number(row.offline_seconds),
+      distanceTravelledKm: Number(row.distance_travelled_km),
+      roadCoinsPending: Number(row.road_coins_pending),
+      travelTokensPending: Number(row.travel_tokens_pending),
+      fuelUsed: Number(row.fuel_used),
+      cleanlinessLoss: Number(row.cleanliness_loss),
+      durabilityLoss: Number(row.durability_loss),
+      weatherSummary: row.weather_summary ?? {},
+      landmarkReached: row.landmark_reached ?? null,
+      forcedStopReason: row.forced_stop_reason,
+      claimed: Boolean(row.claimed),
+      claimedAt: row.claimed_at?.toISOString() ?? null,
+      claimIdempotencyKey: row.claim_idempotency_key ?? null,
     };
   }
 

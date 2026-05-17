@@ -25,6 +25,7 @@ export type PlayerProfile = {
   timezone: string;
   tutorialState: string;
   currentVehicleId: string | null;
+  lastSeenAt: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -58,6 +59,7 @@ export type PlayerState = {
   profile: PlayerProfile;
   walletBalances: WalletBalance[];
   vehicles: PlayerVehicle[];
+  pendingOfflineReport: OfflineReport | null;
 };
 
 export type WalletTransaction = {
@@ -214,6 +216,37 @@ export type CompleteLandmarkResult = {
   walletTransactions: WalletTransaction[];
 };
 
+export type OfflineReport = {
+  reportId: string;
+  playerId: string;
+  tripId: string;
+  generatedAt: string;
+  offlineSeconds: number;
+  distanceTravelledKm: number;
+  roadCoinsPending: number;
+  travelTokensPending: number;
+  fuelUsed: number;
+  cleanlinessLoss: number;
+  durabilityLoss: number;
+  weatherSummary: Record<string, unknown>;
+  landmarkReached: Record<string, unknown> | null;
+  forcedStopReason: string | null;
+  claimed: boolean;
+  claimedAt: string | null;
+  claimIdempotencyKey: string | null;
+};
+
+export type ClaimOfflineReportInput = {
+  reportId: string;
+  idempotencyKey: string;
+};
+
+export type ClaimOfflineReportResult = {
+  report: OfflineReport;
+  walletBalances: WalletBalance[];
+  walletTransactions: WalletTransaction[];
+};
+
 export interface GameDataStore {
   getOrCreatePlayerState(identity: AuthIdentity): Promise<PlayerState>;
   getOrCreatePlayerProfile(identity: AuthIdentity): Promise<PlayerProfile>;
@@ -227,4 +260,5 @@ export interface GameDataStore {
   abandonTrip(identity: AuthIdentity, input: AbandonTripInput): Promise<Trip>;
   driveTick(identity: AuthIdentity, input: DriveTickInput): Promise<DriveTickResult>;
   completeLandmark(identity: AuthIdentity, input: CompleteLandmarkInput): Promise<CompleteLandmarkResult>;
+  claimOfflineReport(identity: AuthIdentity, input: ClaimOfflineReportInput): Promise<ClaimOfflineReportResult>;
 }

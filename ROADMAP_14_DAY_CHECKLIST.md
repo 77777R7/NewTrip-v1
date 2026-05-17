@@ -340,27 +340,27 @@ Goal: offline return creates one pending Travel Report and claim pays once.
 
 Build:
 
-- [ ] Add `offline_reports` table if not already present.
-- [ ] Implement `simulate_offline_progress()`.
-- [ ] Make `GET /player/state` trigger or return pending report.
-- [ ] Implement `POST /trip/claim-offline-report`.
+- [x] Add `offline_reports` table if not already present.
+- [x] Implement `simulate_offline_progress()`.
+- [x] Make `GET /player/state` trigger or return pending report.
+- [x] Implement `POST /trip/claim-offline-report`.
 
 Rules:
 
-- [ ] If current trip has `claimed=false` report, return it and do not generate a new one.
-- [ ] Offline seconds use `min(server_now - max(player.last_seen_at, trip.last_simulated_at), 8h)`.
-- [ ] Offline distance clamps by raw distance, fuel-limited distance, next required landmark, and route end.
+- [x] If current trip has `claimed=false` report, return it and do not generate a new one.
+- [x] Offline seconds use `min(server_now - max(player.last_seen_at, trip.last_simulated_at), 8h)`.
+- [x] Offline distance clamps by raw distance, fuel-limited distance, next required landmark, and route end.
 
 Acceptance:
 
-- [ ] Offline 2 hours can generate report.
-- [ ] Report has distance, rewards, fuel used, cleanliness loss, durability loss.
-- [ ] Report rewards are pending, not directly paid.
-- [ ] Claim writes wallet transactions.
-- [ ] Repeated `/player/state` does not create multiple reports.
-- [ ] Claim retry does not double-pay.
-- [ ] Offline 12 hours counts only 8 hours.
-- [ ] Offline can stop at landmark, route end, or low fuel.
+- [x] Offline 2 hours can generate report.
+- [x] Report has distance, rewards, fuel used, cleanliness loss, durability loss.
+- [x] Report rewards are pending, not directly paid.
+- [x] Claim writes wallet transactions.
+- [x] Repeated `/player/state` does not create multiple reports.
+- [x] Claim retry does not double-pay.
+- [x] Offline 12 hours counts only 8 hours.
+- [x] Offline can stop at landmark, route end, or low fuel.
 
 ## Day 9: Vehicle Maintenance
 
@@ -682,3 +682,4 @@ Trip Simulation Engine
 - 2026-05-16: Completed Day 5 Trip Simulation Engine pure functions with typed simulation inputs, default constants, distance/consumption/offline/forced-stop/reward formulas, and focused unit tests.
 - 2026-05-16: Completed Day 6 online drive tick: `/trip/drive-tick`, backend-authoritative distance/vehicle/wallet updates, tick idempotency, max-duration clamp, landmark forced stop, analytics event writes, and route-end/low-fuel tests.
 - 2026-05-17: Completed Day 7 tutorial landmark/photo slice: tutorial state machine through `PHOTO_TAKEN`, Auto Driving unlock guard, `POST /trip/complete-landmark`, `player_photos`, first-photo wallet reward, and idempotent retry coverage.
+- 2026-05-17: Completed Day 8 offline Travel Report slice: `offline_reports`, `simulate_offline_progress`, pending reports from `/player/state`, claim-only wallet payout, duplicate pending-report prevention, idempotent claim retry, and Supabase migration verification.

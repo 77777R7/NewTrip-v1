@@ -1,6 +1,8 @@
 import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import {
   AuthIdentity,
+  ClaimOfflineReportInput,
+  ClaimOfflineReportResult,
   CompleteLandmarkInput,
   CompleteLandmarkResult,
   DriveTickInput,
@@ -57,6 +59,21 @@ export class TripService {
     }
   }
 
+  async claimOfflineReport(identity: AuthIdentity, input: ClaimOfflineReportInput): Promise<ClaimOfflineReportResult> {
+    try {
+      if (!input.reportId) {
+        throw new Error('REPORT_ID_REQUIRED');
+      }
+      if (!input.idempotencyKey) {
+        throw new Error('IDEMPOTENCY_KEY_REQUIRED');
+      }
+
+      return await this.gameDataStore.claimOfflineReport(identity, input);
+    } catch (error) {
+      throw this.toHttpError(error);
+    }
+  }
+
   private toHttpError(error: unknown): Error {
     if (!(error instanceof Error)) {
       return new Error('Trip operation failed');
@@ -68,17 +85,28 @@ export class TripService {
         'INVALID_DRIVE_MODE',
         'LANDMARK_ID_REQUIRED',
         'INVALID_LANDMARK_ACTION',
+        'REPORT_ID_REQUIRED',
         'IDEMPOTENCY_KEY_REQUIRED',
       ].includes(error.message)
     ) {
       return new BadRequestException(error.message);
     }
 
-    if (['TRIP_NOT_FOUND', 'VEHICLE_NOT_FOUND', 'ROUTE_NOT_FOUND', 'LANDMARK_NOT_FOUND'].includes(error.message)) {
+    if (
+      ['TRIP_NOT_FOUND', 'VEHICLE_NOT_FOUND', 'ROUTE_NOT_FOUND', 'LANDMARK_NOT_FOUND', 'REPORT_NOT_FOUND'].includes(error.message)
+    ) {
       return new NotFoundException(error.message);
     }
 
-    if (['TRIP_NOT_ACTIVE', 'MODE_LOCKED', 'LANDMARK_STOP_REQUIRED', 'LANDMARK_ALREADY_COMPLETED'].includes(error.message)) {
+    if (
+      [
+        'TRIP_NOT_ACTIVE',
+        'MODE_LOCKED',
+        'LANDMARK_STOP_REQUIRED',
+        'LANDMARK_ALREADY_COMPLETED',
+        'REPORT_ALREADY_CLAIMED',
+      ].includes(error.message)
+    ) {
       return new ConflictException(error.message);
     }
 

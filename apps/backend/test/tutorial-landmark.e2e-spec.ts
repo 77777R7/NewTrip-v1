@@ -56,7 +56,7 @@ describe('Tutorial landmark and photo flow', () => {
       .post('/routes/start')
       .set('x-newtrip-auth-id', authId)
       .send({
-        route_id: 'tutorial_coast_001',
+        route_id: 'tutorial_big_sur_hwy1_001',
         player_vehicle_id: state.body.vehicles[0].playerVehicleId,
         idempotency_key: `${authId}:start`,
       })
@@ -165,7 +165,7 @@ describe('Tutorial landmark and photo flow', () => {
     expect(completed.body.photo).toEqual(
       expect.objectContaining({
         landmarkId: FIRST_LANDMARK_ID,
-        photoCardKey: 'photo_first_lighthouse_v1',
+        photoCardKey: 'photo_bixby_bridge_v1',
         isFirstPhoto: true,
       }),
     );

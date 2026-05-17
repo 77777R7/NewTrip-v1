@@ -398,37 +398,43 @@ Goal: completing tutorial grants Stamps and unlocks the next Short Route.
 
 APIs:
 
-- [ ] `POST /trip/complete-route`.
-- [ ] `POST /routes/unlock`.
+- [x] `POST /trip/complete-route`.
+- [x] `POST /routes/unlock`.
 
 Completion rules:
 
-- [ ] `current_distance_km >= route.total_distance_km`.
-- [ ] Completion reward has not already been claimed.
-- [ ] Required landmarks are completed.
+- [x] `current_distance_km >= route.total_distance_km`.
+- [x] Completion reward has not already been claimed.
+- [x] Required landmarks are completed.
 
 Tutorial completion reward:
 
-- [ ] Road Coins.
-- [ ] Travel Tokens.
-- [ ] 1 Souvenir Stamp or enough Stamp Fragments.
-- [ ] `tutorial_state = ROUTE_COMPLETED` or `FULL_SYSTEM_UNLOCKED`.
+- [x] Road Coins.
+- [x] Travel Tokens.
+- [x] 1 Souvenir Stamp or enough Stamp Fragments.
+- [x] `tutorial_state = ROUTE_COMPLETED` or `FULL_SYSTEM_UNLOCKED`.
 
 Route unlock rules:
 
-- [ ] Tutorial is free.
-- [ ] Short Route costs 1-2 Stamps.
-- [ ] Unlock writes `player_unlocked_routes`.
-- [ ] Unlock is permanent.
+- [x] Tutorial is free.
+- [x] Short Route costs 1-2 Stamps.
+- [x] Unlock writes `player_unlocked_routes`.
+- [x] Unlock is permanent.
 
 Acceptance:
 
-- [ ] Tutorial Route can be completed.
-- [ ] `complete-route` pays once.
-- [ ] Full system unlocks after tutorial.
-- [ ] Player receives Stamps.
-- [ ] Player can unlock Short Route.
-- [ ] Starting unlocked Short Route does not spend Stamps again, only Trip Prep Fee.
+- [x] Tutorial Route can be completed.
+- [x] `complete-route` pays once.
+- [x] Full system unlocks after tutorial.
+- [x] Player receives Stamps.
+- [x] Player can unlock Short Route.
+- [x] Starting unlocked Short Route does not spend Stamps again, only Trip Prep Fee.
+
+Route decision:
+
+- [x] Tutorial route is now `tutorial_big_sur_hwy1_001` / `Big Sur Sunset Drive`, a 100 km compressed V1 route based on California Hwy 1 Big Sur Coast, north-to-south from Carmel Highlands to the San Carpoforo Creek approach.
+- [x] First required landmark is `bixby_bridge_lookout` at 40 km.
+- [x] Next Short Route is `short_coast_to_town_001` / `Big Sur to Santa Cruz Drive`, costing 1 Souvenir Stamp and 70 Road Coins Trip Prep Fee.
 
 ## Day 11: Daily Login And Basic Quest System
 

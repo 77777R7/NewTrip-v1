@@ -28,7 +28,7 @@ describe('Route and trip endpoints', () => {
     expect(response.body).toHaveLength(1);
     expect(response.body[0]).toEqual(
       expect.objectContaining({
-        routeKey: 'tutorial_coast_001',
+        routeKey: 'tutorial_big_sur_hwy1_001',
         routeType: 'Tutorial',
         tripPrepFeeCoins: 0,
         unlockCostStamps: 0,
@@ -43,12 +43,12 @@ describe('Route and trip endpoints', () => {
       .set('x-newtrip-auth-id', 'day4-route-detail')
       .expect(200);
 
-    expect(response.body.routeKey).toBe('tutorial_coast_001');
+    expect(response.body.routeKey).toBe('tutorial_big_sur_hwy1_001');
     expect(response.body.segments).toHaveLength(3);
     expect(response.body.landmarks).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          landmarkKey: 'first_lighthouse',
+          landmarkKey: 'bixby_bridge_lookout',
           distanceKm: 40,
           requiredStop: true,
         }),
@@ -108,7 +108,7 @@ describe('Route and trip endpoints', () => {
       .post('/routes/start')
       .set('x-newtrip-auth-id', authId)
       .send({
-        route_id: 'tutorial_coast_001',
+        route_id: 'tutorial_big_sur_hwy1_001',
         idempotency_key: 'same_start_key',
       })
       .expect(201);
@@ -117,7 +117,7 @@ describe('Route and trip endpoints', () => {
       .post('/routes/start')
       .set('x-newtrip-auth-id', authId)
       .send({
-        route_id: 'tutorial_coast_001',
+        route_id: 'tutorial_big_sur_hwy1_001',
         idempotency_key: 'same_start_key',
       })
       .expect(201);
@@ -136,7 +136,7 @@ describe('Route and trip endpoints', () => {
       .post('/routes/start')
       .set('x-newtrip-auth-id', authId)
       .send({
-        route_id: 'tutorial_coast_001',
+        route_id: 'tutorial_big_sur_hwy1_001',
         idempotency_key: 'start_before_abandon',
       })
       .expect(201);

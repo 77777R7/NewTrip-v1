@@ -52,7 +52,7 @@ describe('Vehicle maintenance endpoints', () => {
       .post('/routes/start')
       .set('x-newtrip-auth-id', authId)
       .send({
-        route_id: 'tutorial_coast_001',
+        route_id: 'tutorial_big_sur_hwy1_001',
         player_vehicle_id: state.body.vehicles[0].playerVehicleId,
         idempotency_key: `${authId}:start`,
       })

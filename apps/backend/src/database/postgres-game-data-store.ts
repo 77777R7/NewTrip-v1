@@ -10,6 +10,8 @@ import {
   ClaimOfflineReportResult,
   CompleteLandmarkInput,
   CompleteLandmarkResult,
+  CompleteRouteInput,
+  CompleteRouteResult,
   DriveTickInput,
   DriveTickResult,
   GameDataStore,
@@ -20,9 +22,11 @@ import {
   PlayerState,
   PlayerVehicle,
   RouteDefinition,
+  RouteUnlockResult,
   RouteSegment,
   StartTripInput,
   Trip,
+  UnlockRouteInput,
   VehicleMaintenanceInput,
   VehicleMaintenanceResult,
   WalletBalance,
@@ -35,6 +39,12 @@ import { DEFAULT_SIMULATION_CONFIG } from '../modules/simulation/simulation.cons
 import { isOnlineDriveModeUnlocked, simulateOnlineDriveTick } from '../modules/simulation/online-drive-tick';
 import { nextTutorialStateAfterDriveTick, nextTutorialStateAfterPhoto } from '../modules/tutorial/tutorial-state';
 import { calculateVehicleMaintenance } from '../modules/vehicle-maintenance/maintenance.formulas';
+
+const TUTORIAL_COMPLETION_REWARDS = {
+  roadCoins: 150,
+  travelTokens: 1,
+  souvenirStamps: 1,
+};
 
 @Injectable()
 export class PostgresGameDataStore implements GameDataStore, OnModuleDestroy {
@@ -171,6 +181,134 @@ export class PostgresGameDataStore implements GameDataStore, OnModuleDestroy {
     return this.loadRouteDetails(this.toRouteDefinition(route.rows[0]));
   }
 
+  async unlockRoute(identity: AuthIdentity, input: UnlockRouteInput): Promise<RouteUnlockResult> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('begin');
+      const profile = await this.getOrCreatePlayerProfileInTransaction(client, identity);
+      await this.ensurePlayerDefaultsInTransaction(client, profile.playerId);
+
+      const existingForKey = await client.query(
+        `
+          select result_payload
+          from public.route_unlock_actions
+          where player_id = $1 and idempotency_key = $2
+          limit 1
+          for update
+        `,
+        [profile.playerId, input.idempotencyKey],
+      );
+      if (existingForKey.rowCount) {
+        await client.query('commit');
+        return existingForKey.rows[0].result_payload as RouteUnlockResult;
+      }
+
+      const routeResult = await client.query(
+        `
+          select
+            rd.*,
+            (rd.route_type = 'Tutorial' or pur.player_id is not null) as is_unlocked
+          from public.route_definitions rd
+          join public.config_versions cv on cv.config_version_id = rd.config_version_id
+          left join public.player_unlocked_routes pur
+            on pur.route_id = rd.route_id and pur.player_id = $1
+          where cv.status = 'LIVE'
+            and rd.is_active = true
+            and (rd.route_id::text = $2 or rd.route_key = $2)
+          limit 1
+        `,
+        [profile.playerId, input.routeId],
+      );
+      if (!routeResult.rowCount) {
+        throw new Error('ROUTE_NOT_FOUND');
+      }
+
+      const route = this.toRouteDefinition(routeResult.rows[0]);
+      if (route.routeType !== 'Tutorial' && !this.hasFullRouteAccess(profile)) {
+        throw new Error('ROUTE_LOCKED');
+      }
+
+      if (route.routeType === 'Tutorial' || route.isUnlocked) {
+        const result: RouteUnlockResult = {
+          route: await this.getRouteForTripInTransaction(client, profile.playerId, route.routeId) ?? route,
+          costStamps: 0,
+          walletBalances: await this.getWalletBalancesInTransaction(client, profile.playerId),
+          walletTransactions: [],
+        };
+        await client.query('commit');
+        return result;
+      }
+
+      const walletTransactions: WalletTransaction[] = [];
+      let stampTxId: string | null = null;
+      if (route.unlockCostStamps > 0) {
+        const stampTx = await this.mutateWalletInTransaction(client, {
+          playerId: profile.playerId,
+          currency: 'SOUVENIR_STAMPS',
+          amount: route.unlockCostStamps,
+          reason: 'ROUTE_UNLOCK',
+          sourceType: 'ROUTE_UNLOCK',
+          sourceId: route.routeId,
+          idempotencyKey: `${input.idempotencyKey}:souvenir_stamps`,
+        }, -route.unlockCostStamps);
+        walletTransactions.push(stampTx);
+        stampTxId = stampTx.transactionId;
+      }
+
+      await client.query(
+        `
+          insert into public.player_unlocked_routes (
+            player_id,
+            route_id,
+            unlocked_by,
+            cost_stamps
+          )
+          values ($1, $2, 'SOUVENIR_STAMPS', $3)
+          on conflict (player_id, route_id) do nothing
+        `,
+        [profile.playerId, route.routeId, route.unlockCostStamps],
+      );
+
+      const unlockedRoute = await this.getRouteForTripInTransaction(client, profile.playerId, route.routeId);
+      const result: RouteUnlockResult = {
+        route: unlockedRoute ?? { ...route, isUnlocked: true },
+        costStamps: route.unlockCostStamps,
+        walletBalances: await this.getWalletBalancesInTransaction(client, profile.playerId),
+        walletTransactions,
+      };
+
+      await client.query(
+        `
+          insert into public.route_unlock_actions (
+            player_id,
+            route_id,
+            idempotency_key,
+            cost_stamps,
+            wallet_transaction_id,
+            result_payload
+          )
+          values ($1, $2, $3, $4, $5, $6::jsonb)
+        `,
+        [
+          profile.playerId,
+          route.routeId,
+          input.idempotencyKey,
+          route.unlockCostStamps,
+          stampTxId,
+          JSON.stringify(result),
+        ],
+      );
+
+      await client.query('commit');
+      return result;
+    } catch (error) {
+      await client.query('rollback');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
   async getCurrentTrip(identity: AuthIdentity): Promise<Trip | null> {
     const state = await this.getOrCreatePlayerState(identity);
     const trip = await this.pool.query(
@@ -265,6 +403,18 @@ export class PostgresGameDataStore implements GameDataStore, OnModuleDestroy {
       );
       if (!vehicleResult.rowCount) {
         throw new Error('VEHICLE_NOT_FOUND');
+      }
+
+      if (route.tripPrepFeeCoins > 0) {
+        await this.mutateWalletInTransaction(client, {
+          playerId: profile.playerId,
+          currency: 'ROAD_COINS',
+          amount: route.tripPrepFeeCoins,
+          reason: 'TRIP_PREP_FEE',
+          sourceType: 'ROUTE_START',
+          sourceId: route.routeId,
+          idempotencyKey: `${input.idempotencyKey}:trip_prep_fee`,
+        }, -route.tripPrepFeeCoins);
       }
 
       const tripResult = await client.query(
@@ -1009,6 +1159,222 @@ export class PostgresGameDataStore implements GameDataStore, OnModuleDestroy {
         walletBalances: await this.getWalletBalancesInTransaction(client, profile.playerId),
         walletTransactions,
       };
+
+      await client.query('commit');
+      return result;
+    } catch (error) {
+      await client.query('rollback');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async completeRoute(identity: AuthIdentity, input: CompleteRouteInput): Promise<CompleteRouteResult> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('begin');
+      const profile = await this.getOrCreatePlayerProfileInTransaction(client, identity);
+      await this.ensurePlayerDefaultsInTransaction(client, profile.playerId);
+
+      const existingForKey = await client.query(
+        `
+          select result_payload
+          from public.route_completion_actions
+          where player_id = $1 and idempotency_key = $2
+          limit 1
+          for update
+        `,
+        [profile.playerId, input.idempotencyKey],
+      );
+      if (existingForKey.rowCount) {
+        await client.query('commit');
+        return existingForKey.rows[0].result_payload as CompleteRouteResult;
+      }
+
+      const tripResult = await client.query(
+        `
+          select *
+          from public.player_trips
+          where player_id = $1 and trip_id = $2
+          for update
+        `,
+        [profile.playerId, input.tripId],
+      );
+      if (!tripResult.rowCount) {
+        throw new Error('TRIP_NOT_FOUND');
+      }
+
+      const trip = this.toTrip(tripResult.rows[0]);
+      if (trip.status === 'COMPLETED') {
+        throw new Error('ROUTE_ALREADY_COMPLETED');
+      }
+      if (trip.status === 'ABANDONED') {
+        throw new Error('TRIP_NOT_ACTIVE');
+      }
+
+      const route = await this.getRouteForTripInTransaction(client, profile.playerId, trip.routeId);
+      if (!route) {
+        throw new Error('ROUTE_NOT_FOUND');
+      }
+      if (trip.currentDistanceKm < route.totalDistanceKm) {
+        throw new Error('ROUTE_NOT_COMPLETE');
+      }
+      if (trip.forcedStopReason && trip.forcedStopReason !== 'ROUTE_END') {
+        throw new Error('ROUTE_NOT_COMPLETE');
+      }
+
+      const incompleteRequiredLandmark = await client.query(
+        `
+          select l.landmark_id
+          from public.landmarks l
+          left join public.player_photos p
+            on p.player_id = $2
+            and p.landmark_id = l.landmark_id
+            and p.is_first_photo = true
+          where l.route_id = $1
+            and l.required_stop = true
+            and p.photo_id is null
+          limit 1
+        `,
+        [trip.routeId, profile.playerId],
+      );
+      if (incompleteRequiredLandmark.rowCount) {
+        throw new Error('REQUIRED_LANDMARKS_INCOMPLETE');
+      }
+
+      const rewards = route.routeType === 'Tutorial'
+        ? TUTORIAL_COMPLETION_REWARDS
+        : { roadCoins: 0, travelTokens: 0, souvenirStamps: 0 };
+      const walletTransactions: WalletTransaction[] = [];
+      if (rewards.roadCoins > 0) {
+        walletTransactions.push(
+          await this.mutateWalletInTransaction(client, {
+            playerId: profile.playerId,
+            currency: 'ROAD_COINS',
+            amount: rewards.roadCoins,
+            reason: 'ROUTE_COMPLETE_REWARD',
+            sourceType: 'ROUTE_COMPLETION',
+            sourceId: trip.tripId,
+            idempotencyKey: `${input.idempotencyKey}:road_coins`,
+          }, rewards.roadCoins),
+        );
+      }
+      if (rewards.travelTokens > 0) {
+        walletTransactions.push(
+          await this.mutateWalletInTransaction(client, {
+            playerId: profile.playerId,
+            currency: 'TRAVEL_TOKENS',
+            amount: rewards.travelTokens,
+            reason: 'ROUTE_COMPLETE_REWARD',
+            sourceType: 'ROUTE_COMPLETION',
+            sourceId: trip.tripId,
+            idempotencyKey: `${input.idempotencyKey}:travel_tokens`,
+          }, rewards.travelTokens),
+        );
+      }
+      if (rewards.souvenirStamps > 0) {
+        walletTransactions.push(
+          await this.mutateWalletInTransaction(client, {
+            playerId: profile.playerId,
+            currency: 'SOUVENIR_STAMPS',
+            amount: rewards.souvenirStamps,
+            reason: 'ROUTE_COMPLETE_REWARD',
+            sourceType: 'ROUTE_COMPLETION',
+            sourceId: trip.tripId,
+            idempotencyKey: `${input.idempotencyKey}:souvenir_stamps`,
+          }, rewards.souvenirStamps),
+        );
+      }
+
+      const updatedTripResult = await client.query(
+        `
+          update public.player_trips
+          set status = 'COMPLETED',
+              current_distance_km = $2,
+              completed_at = now(),
+              forced_stop_reason = null,
+              last_simulated_at = now()
+          where trip_id = $1
+          returning *
+        `,
+        [trip.tripId, route.totalDistanceKm],
+      );
+
+      await client.query(
+        `
+          update public.player_vehicles
+          set locked_in_trip_id = null,
+              version = version + 1
+          where player_vehicle_id = $1 and locked_in_trip_id = $2
+        `,
+        [trip.playerVehicleId, trip.tripId],
+      );
+
+      let updatedProfile = profile;
+      if (route.routeType === 'Tutorial') {
+        const updatedProfileResult = await client.query(
+          `
+            update public.players
+            set tutorial_state = 'FULL_SYSTEM_UNLOCKED',
+                updated_at = now()
+            where player_id = $1
+            returning *
+          `,
+          [profile.playerId],
+        );
+        updatedProfile = this.toPlayerProfile(updatedProfileResult.rows[0]);
+      }
+
+      await this.insertAnalyticsEventInTransaction(client, {
+        playerId: profile.playerId,
+        eventName: 'route_completed',
+        sourceType: 'TRIP',
+        sourceId: trip.tripId,
+        payload: {
+          route_id: route.routeId,
+          route_key: route.routeKey,
+          total_distance_km: route.totalDistanceKm,
+          road_coins: rewards.roadCoins,
+          travel_tokens: rewards.travelTokens,
+          souvenir_stamps: rewards.souvenirStamps,
+        },
+      });
+
+      const result: CompleteRouteResult = {
+        trip: {
+          ...this.toTrip(updatedTripResult.rows[0]),
+          route,
+        },
+        profile: updatedProfile,
+        completionRewards: rewards,
+        walletBalances: await this.getWalletBalancesInTransaction(client, profile.playerId),
+        walletTransactions,
+      };
+
+      await client.query(
+        `
+          insert into public.route_completion_actions (
+            player_id,
+            trip_id,
+            idempotency_key,
+            road_coins_reward,
+            travel_tokens_reward,
+            souvenir_stamps_reward,
+            result_payload
+          )
+          values ($1, $2, $3, $4, $5, $6, $7::jsonb)
+        `,
+        [
+          profile.playerId,
+          trip.tripId,
+          input.idempotencyKey,
+          rewards.roadCoins,
+          rewards.travelTokens,
+          rewards.souvenirStamps,
+          JSON.stringify(result),
+        ],
+      );
 
       await client.query('commit');
       return result;

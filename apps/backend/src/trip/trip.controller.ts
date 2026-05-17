@@ -30,6 +30,13 @@ type ClaimOfflineReportBody = {
   idempotency_key?: string;
 };
 
+type CompleteRouteBody = {
+  tripId?: string;
+  trip_id?: string;
+  idempotencyKey?: string;
+  idempotency_key?: string;
+};
+
 @Controller('trip')
 export class TripController {
   constructor(private readonly tripService: TripService) {}
@@ -63,6 +70,14 @@ export class TripController {
   claimOfflineReport(@Req() request: Request, @Body() body: ClaimOfflineReportBody) {
     return this.tripService.claimOfflineReport(getRequestAuthIdentity(request), {
       reportId: body.reportId ?? body.report_id ?? '',
+      idempotencyKey: body.idempotencyKey ?? body.idempotency_key ?? '',
+    });
+  }
+
+  @Post('complete-route')
+  completeRoute(@Req() request: Request, @Body() body: CompleteRouteBody) {
+    return this.tripService.completeRoute(getRequestAuthIdentity(request), {
+      tripId: body.tripId ?? body.trip_id ?? '',
       idempotencyKey: body.idempotencyKey ?? body.idempotency_key ?? '',
     });
   }

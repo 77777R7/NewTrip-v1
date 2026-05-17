@@ -8,6 +8,8 @@ import {
   ClaimOfflineReportResult,
   CompleteLandmarkInput,
   CompleteLandmarkResult,
+  CompleteRouteInput,
+  CompleteRouteResult,
   DriveTickInput,
   DriveTickResult,
   GameDataStore,
@@ -18,9 +20,11 @@ import {
   PlayerState,
   PlayerVehicle,
   RouteDefinition,
+  RouteUnlockResult,
   RouteSegment,
   StartTripInput,
   Trip,
+  UnlockRouteInput,
   VehicleMaintenanceInput,
   VehicleMaintenanceResult,
   WalletBalance,
@@ -68,8 +72,8 @@ const ROUTE_SEGMENTS: Record<string, RouteSegment[]> = {
       segmentId: '00000000-0000-4000-8000-000000000401',
       segmentIndex: 0,
       startKm: 0,
-      endKm: 34,
-      terrainType: 'coast',
+      endKm: 35,
+      terrainType: 'coastal_cliffs',
       speedMultiplier: 1,
       fuelMultiplier: 1,
       cleanlinessMultiplier: 1,
@@ -78,9 +82,9 @@ const ROUTE_SEGMENTS: Record<string, RouteSegment[]> = {
     {
       segmentId: '00000000-0000-4000-8000-000000000402',
       segmentIndex: 1,
-      startKm: 34,
+      startKm: 35,
       endKm: 70,
-      terrainType: 'forest',
+      terrainType: 'bridge_coast',
       speedMultiplier: 0.92,
       fuelMultiplier: 1,
       cleanlinessMultiplier: 1.08,
@@ -91,11 +95,46 @@ const ROUTE_SEGMENTS: Record<string, RouteSegment[]> = {
       segmentIndex: 2,
       startKm: 70,
       endKm: 100,
-      terrainType: 'highway',
+      terrainType: 'south_coast_highway',
       speedMultiplier: 1.08,
       fuelMultiplier: 0.95,
       cleanlinessMultiplier: 0.95,
       durabilityMultiplier: 0.95,
+    },
+  ],
+  [SHORT_ROUTE_ID]: [
+    {
+      segmentId: '00000000-0000-4000-8000-000000000411',
+      segmentIndex: 0,
+      startKm: 0,
+      endKm: 30,
+      terrainType: 'monterey_bay_coast',
+      speedMultiplier: 1,
+      fuelMultiplier: 1,
+      cleanlinessMultiplier: 1,
+      durabilityMultiplier: 1,
+    },
+    {
+      segmentId: '00000000-0000-4000-8000-000000000412',
+      segmentIndex: 1,
+      startKm: 30,
+      endKm: 65,
+      terrainType: 'coastal_town',
+      speedMultiplier: 0.96,
+      fuelMultiplier: 1.02,
+      cleanlinessMultiplier: 1.04,
+      durabilityMultiplier: 1,
+    },
+    {
+      segmentId: '00000000-0000-4000-8000-000000000413',
+      segmentIndex: 2,
+      startKm: 65,
+      endKm: 95,
+      terrainType: 'boardwalk_approach',
+      speedMultiplier: 1.04,
+      fuelMultiplier: 0.98,
+      cleanlinessMultiplier: 0.98,
+      durabilityMultiplier: 0.98,
     },
   ],
 };
@@ -104,13 +143,25 @@ const ROUTE_LANDMARKS: Record<string, Landmark[]> = {
   [TUTORIAL_ROUTE_ID]: [
     {
       landmarkId: '00000000-0000-4000-8000-000000000501',
-      landmarkKey: 'first_lighthouse',
-      name: 'First Lighthouse',
+      landmarkKey: 'bixby_bridge_lookout',
+      name: 'Bixby Bridge Lookout',
       distanceKm: 40,
       requiredStop: true,
       rarity: 'Common',
       basePhotoCoins: 80,
-      photoCardKey: 'photo_first_lighthouse_v1',
+      photoCardKey: 'photo_bixby_bridge_v1',
+    },
+  ],
+  [SHORT_ROUTE_ID]: [
+    {
+      landmarkId: '00000000-0000-4000-8000-000000000502',
+      landmarkKey: 'santa_cruz_boardwalk',
+      name: 'Santa Cruz Boardwalk',
+      distanceKm: 82,
+      requiredStop: true,
+      rarity: 'Common',
+      basePhotoCoins: 90,
+      photoCardKey: 'photo_santa_cruz_boardwalk_v1',
     },
   ],
 };
@@ -119,38 +170,44 @@ const ROUTES: RouteDefinition[] = [
   {
     routeId: TUTORIAL_ROUTE_ID,
     configVersionId: LIVE_CONFIG_VERSION_ID,
-    routeKey: 'tutorial_coast_001',
-    name: 'Bay Town to Lighthouse Road',
-    region: 'Starter Coast',
-    startNode: 'Bay Town',
-    destinationNode: 'Lighthouse Road',
+    routeKey: 'tutorial_big_sur_hwy1_001',
+    name: 'Big Sur Sunset Drive',
+    region: 'California Highway 1',
+    startNode: 'Carmel Highlands',
+    destinationNode: 'San Carpoforo Creek Approach',
     routeType: 'Tutorial',
     totalDistanceKm: 100,
     difficulty: 1,
     unlockCostStamps: 0,
     tripPrepFeeCoins: 0,
     rewardMultiplier: 1,
-    backgroundPackId: 'bg_coast_pixel_v1',
+    backgroundPackId: 'bg_big_sur_sunset_v1',
     isUnlocked: true,
   },
   {
     routeId: SHORT_ROUTE_ID,
     configVersionId: LIVE_CONFIG_VERSION_ID,
-    routeKey: 'short_forest_001',
-    name: 'Pine Loop Scenic Drive',
-    region: 'Starter Forest',
-    startNode: 'Lighthouse Road',
-    destinationNode: 'Pine Loop',
+    routeKey: 'short_coast_to_town_001',
+    name: 'Big Sur to Santa Cruz Drive',
+    region: 'California Central Coast',
+    startNode: 'Monterey Bay',
+    destinationNode: 'Santa Cruz Boardwalk',
     routeType: 'Short',
-    totalDistanceKm: 180,
+    totalDistanceKm: 95,
     difficulty: 2,
-    unlockCostStamps: 2,
+    unlockCostStamps: 1,
     tripPrepFeeCoins: 70,
     rewardMultiplier: 1.08,
-    backgroundPackId: 'bg_forest_pixel_v1',
+    backgroundPackId: 'bg_santa_cruz_sunset_v1',
     isUnlocked: false,
   },
 ];
+
+const TUTORIAL_COMPLETION_REWARDS = {
+  roadCoins: 150,
+  travelTokens: 1,
+  souvenirStamps: 1,
+};
 
 export class InMemoryGameDataStore implements GameDataStore {
   private readonly playersByIdentity = new Map<string, InternalPlayer>();
@@ -163,6 +220,8 @@ export class InMemoryGameDataStore implements GameDataStore {
   private readonly abandonedTripByPlayerAndIdempotencyKey = new Map<string, Trip>();
   private readonly driveTickResultByPlayerAndIdempotencyKey = new Map<string, DriveTickResult>();
   private readonly completeLandmarkResultByPlayerAndIdempotencyKey = new Map<string, CompleteLandmarkResult>();
+  private readonly completeRouteResultByPlayerAndIdempotencyKey = new Map<string, CompleteRouteResult>();
+  private readonly routeUnlockResultByPlayerAndIdempotencyKey = new Map<string, RouteUnlockResult>();
   private readonly vehicleMaintenanceResultByPlayerAndIdempotencyKey = new Map<string, VehicleMaintenanceResult>();
   private readonly offlineReports: OfflineReport[] = [];
   private readonly playerPhotos: PlayerPhoto[] = [];
@@ -253,6 +312,62 @@ export class InMemoryGameDataStore implements GameDataStore {
     return this.routeWithDetails(this.routeWithPlayerUnlock(route, state.profile.playerId));
   }
 
+  async unlockRoute(identity: AuthIdentity, input: UnlockRouteInput): Promise<RouteUnlockResult> {
+    const state = await this.getOrCreatePlayerState(identity);
+    const playerId = state.profile.playerId;
+    const resultKey = `${playerId}:${input.idempotencyKey}`;
+    const existingForKey = this.routeUnlockResultByPlayerAndIdempotencyKey.get(resultKey);
+    if (existingForKey) {
+      return this.cloneRouteUnlockResult(existingForKey);
+    }
+
+    const route = ROUTES.find((candidate) => candidate.routeId === input.routeId || candidate.routeKey === input.routeId);
+    if (!route) {
+      throw new Error('ROUTE_NOT_FOUND');
+    }
+
+    if (route.routeType !== 'Tutorial' && !this.hasFullRouteAccess(state.profile)) {
+      throw new Error('ROUTE_LOCKED');
+    }
+
+    if (route.routeType === 'Tutorial' || this.isRouteUnlocked(playerId, route.routeId)) {
+      return {
+        route: this.routeWithDetails(this.routeWithPlayerUnlock(route, playerId)),
+        costStamps: 0,
+        walletBalances: await this.getWalletBalances(playerId),
+        walletTransactions: [],
+      };
+    }
+
+    const walletTransactions: WalletTransaction[] = [];
+    if (route.unlockCostStamps > 0) {
+      walletTransactions.push(
+        await this.spendWallet({
+          playerId,
+          currency: 'SOUVENIR_STAMPS',
+          amount: route.unlockCostStamps,
+          reason: 'ROUTE_UNLOCK',
+          sourceType: 'ROUTE_UNLOCK',
+          sourceId: route.routeId,
+          idempotencyKey: `${input.idempotencyKey}:souvenir_stamps`,
+        }),
+      );
+    }
+
+    const unlockedRoutes = this.unlockedRoutesByPlayer.get(playerId) ?? new Set<string>();
+    unlockedRoutes.add(route.routeId);
+    this.unlockedRoutesByPlayer.set(playerId, unlockedRoutes);
+    const result: RouteUnlockResult = {
+      route: this.routeWithDetails(this.routeWithPlayerUnlock(route, playerId)),
+      costStamps: route.unlockCostStamps,
+      walletBalances: await this.getWalletBalances(playerId),
+      walletTransactions,
+    };
+
+    this.routeUnlockResultByPlayerAndIdempotencyKey.set(resultKey, this.cloneRouteUnlockResult(result));
+    return result;
+  }
+
   async getCurrentTrip(identity: AuthIdentity): Promise<Trip | null> {
     const state = await this.getOrCreatePlayerState(identity);
     const trip = this.findRunningTrip(state.profile.playerId);
@@ -282,6 +397,18 @@ export class InMemoryGameDataStore implements GameDataStore {
     const playerVehicle = state.vehicles.find((vehicle) => vehicle.playerVehicleId === (input.playerVehicleId ?? state.profile.currentVehicleId));
     if (!playerVehicle) {
       throw new Error('VEHICLE_NOT_FOUND');
+    }
+
+    if (route.tripPrepFeeCoins > 0) {
+      await this.spendWallet({
+        playerId,
+        currency: 'ROAD_COINS',
+        amount: route.tripPrepFeeCoins,
+        reason: 'TRIP_PREP_FEE',
+        sourceType: 'ROUTE_START',
+        sourceId: route.routeId,
+        idempotencyKey: `${input.idempotencyKey}:trip_prep_fee`,
+      });
     }
 
     const now = new Date().toISOString();
@@ -666,6 +793,132 @@ export class InMemoryGameDataStore implements GameDataStore {
     };
   }
 
+  async completeRoute(identity: AuthIdentity, input: CompleteRouteInput): Promise<CompleteRouteResult> {
+    const state = await this.getOrCreatePlayerState(identity);
+    const playerId = state.profile.playerId;
+    const resultKey = `${playerId}:${input.idempotencyKey}`;
+    const existingForKey = this.completeRouteResultByPlayerAndIdempotencyKey.get(resultKey);
+    if (existingForKey) {
+      return this.cloneCompleteRouteResult(existingForKey);
+    }
+
+    const trip = this.tripsByPlayer
+      .get(playerId)
+      ?.find((candidate) => candidate.tripId === input.tripId);
+    if (!trip) {
+      throw new Error('TRIP_NOT_FOUND');
+    }
+    if (trip.status === 'COMPLETED') {
+      throw new Error('ROUTE_ALREADY_COMPLETED');
+    }
+    if (trip.status === 'ABANDONED') {
+      throw new Error('TRIP_NOT_ACTIVE');
+    }
+
+    const baseRoute = ROUTES.find((candidate) => candidate.routeId === trip.routeId);
+    if (!baseRoute) {
+      throw new Error('ROUTE_NOT_FOUND');
+    }
+    const route = this.routeWithDetails(baseRoute);
+    if (trip.currentDistanceKm < route.totalDistanceKm) {
+      throw new Error('ROUTE_NOT_COMPLETE');
+    }
+    if (trip.forcedStopReason && trip.forcedStopReason !== 'ROUTE_END') {
+      throw new Error('ROUTE_NOT_COMPLETE');
+    }
+
+    const incompleteRequiredLandmark = (route.landmarks ?? []).find(
+      (landmark) => landmark.requiredStop && !this.hasFirstPhoto(playerId, landmark.landmarkId),
+    );
+    if (incompleteRequiredLandmark) {
+      throw new Error('REQUIRED_LANDMARKS_INCOMPLETE');
+    }
+
+    const rewards = route.routeType === 'Tutorial'
+      ? TUTORIAL_COMPLETION_REWARDS
+      : { roadCoins: 0, travelTokens: 0, souvenirStamps: 0 };
+    const walletTransactions: WalletTransaction[] = [];
+    if (rewards.roadCoins > 0) {
+      walletTransactions.push(
+        await this.grantWallet({
+          playerId,
+          currency: 'ROAD_COINS',
+          amount: rewards.roadCoins,
+          reason: 'ROUTE_COMPLETE_REWARD',
+          sourceType: 'ROUTE_COMPLETION',
+          sourceId: trip.tripId,
+          idempotencyKey: `${input.idempotencyKey}:road_coins`,
+        }),
+      );
+    }
+    if (rewards.travelTokens > 0) {
+      walletTransactions.push(
+        await this.grantWallet({
+          playerId,
+          currency: 'TRAVEL_TOKENS',
+          amount: rewards.travelTokens,
+          reason: 'ROUTE_COMPLETE_REWARD',
+          sourceType: 'ROUTE_COMPLETION',
+          sourceId: trip.tripId,
+          idempotencyKey: `${input.idempotencyKey}:travel_tokens`,
+        }),
+      );
+    }
+    if (rewards.souvenirStamps > 0) {
+      walletTransactions.push(
+        await this.grantWallet({
+          playerId,
+          currency: 'SOUVENIR_STAMPS',
+          amount: rewards.souvenirStamps,
+          reason: 'ROUTE_COMPLETE_REWARD',
+          sourceType: 'ROUTE_COMPLETION',
+          sourceId: trip.tripId,
+          idempotencyKey: `${input.idempotencyKey}:souvenir_stamps`,
+        }),
+      );
+    }
+
+    const now = new Date().toISOString();
+    trip.status = 'COMPLETED';
+    trip.currentDistanceKm = route.totalDistanceKm;
+    trip.completedAt = now;
+    trip.forcedStopReason = null;
+    trip.lastSimulatedAt = now;
+    this.unlockVehicle(playerId, trip.playerVehicleId, trip.tripId);
+    if (route.routeType === 'Tutorial') {
+      this.transitionTutorialState(playerId, 'FULL_SYSTEM_UNLOCKED');
+    }
+
+    this.analyticsEvents.push({
+      playerId,
+      eventName: 'route_completed',
+      sourceType: 'TRIP',
+      sourceId: trip.tripId,
+      eventPayload: {
+        route_id: route.routeId,
+        route_key: route.routeKey,
+        total_distance_km: route.totalDistanceKm,
+        road_coins: rewards.roadCoins,
+        travel_tokens: rewards.travelTokens,
+        souvenir_stamps: rewards.souvenirStamps,
+      },
+      occurredAt: now,
+    });
+
+    const profile = this.findPlayerById(playerId) ?? state.profile;
+    const result: CompleteRouteResult = {
+      trip: this.tripWithRoute(trip),
+      profile: { ...profile },
+      completionRewards: rewards,
+      walletBalances: await this.getWalletBalances(playerId),
+      walletTransactions,
+    };
+
+    this.completeRouteResultByPlayerAndIdempotencyKey.set(resultKey, this.cloneCompleteRouteResult(result));
+    this.touchPlayerLastSeen(playerId);
+    return result;
+  }
+
   async maintainVehicle(identity: AuthIdentity, input: VehicleMaintenanceInput): Promise<VehicleMaintenanceResult> {
     const profile = await this.getOrCreatePlayerProfile(identity);
     this.ensurePlayerDefaults(profile.playerId);
@@ -921,7 +1174,7 @@ export class InMemoryGameDataStore implements GameDataStore {
     const route = ROUTES.find((candidate) => candidate.routeId === trip.routeId);
     return {
       ...trip,
-      route: route ? this.routeWithDetails(route) : undefined,
+      route: route ? this.routeWithDetails(this.routeWithPlayerUnlock(route, trip.playerId)) : undefined,
     };
   }
 
@@ -990,6 +1243,14 @@ export class InMemoryGameDataStore implements GameDataStore {
 
   private cloneCompleteLandmarkResult(result: CompleteLandmarkResult): CompleteLandmarkResult {
     return JSON.parse(JSON.stringify(result)) as CompleteLandmarkResult;
+  }
+
+  private cloneCompleteRouteResult(result: CompleteRouteResult): CompleteRouteResult {
+    return JSON.parse(JSON.stringify(result)) as CompleteRouteResult;
+  }
+
+  private cloneRouteUnlockResult(result: RouteUnlockResult): RouteUnlockResult {
+    return JSON.parse(JSON.stringify(result)) as RouteUnlockResult;
   }
 
   private cloneVehicleMaintenanceResult(result: VehicleMaintenanceResult): VehicleMaintenanceResult {

@@ -160,6 +160,18 @@ export type AbandonTripInput = {
   idempotencyKey: string;
 };
 
+export type UnlockRouteInput = {
+  routeId: string;
+  idempotencyKey: string;
+};
+
+export type RouteUnlockResult = {
+  route: RouteDefinition;
+  costStamps: number;
+  walletBalances: WalletBalance[];
+  walletTransactions: WalletTransaction[];
+};
+
 export type DriveTickInput = {
   tripId: string;
   mode: 'HOLD_TO_DRIVE' | 'AUTO_DRIVING' | 'HOLD_TO_BOOST';
@@ -249,6 +261,23 @@ export type ClaimOfflineReportResult = {
   walletTransactions: WalletTransaction[];
 };
 
+export type CompleteRouteInput = {
+  tripId: string;
+  idempotencyKey: string;
+};
+
+export type CompleteRouteResult = {
+  trip: Trip;
+  profile: PlayerProfile;
+  completionRewards: {
+    roadCoins: number;
+    travelTokens: number;
+    souvenirStamps: number;
+  };
+  walletBalances: WalletBalance[];
+  walletTransactions: WalletTransaction[];
+};
+
 export type VehicleMaintenanceInput = {
   action: VehicleMaintenanceAction;
   playerVehicleId?: string;
@@ -272,11 +301,13 @@ export interface GameDataStore {
   spendWallet(input: WalletMutationInput): Promise<WalletTransaction>;
   getAvailableRoutes(identity: AuthIdentity): Promise<RouteDefinition[]>;
   getRoute(identity: AuthIdentity, routeId: string): Promise<RouteDefinition | null>;
+  unlockRoute(identity: AuthIdentity, input: UnlockRouteInput): Promise<RouteUnlockResult>;
   getCurrentTrip(identity: AuthIdentity): Promise<Trip | null>;
   startTrip(identity: AuthIdentity, input: StartTripInput): Promise<Trip>;
   abandonTrip(identity: AuthIdentity, input: AbandonTripInput): Promise<Trip>;
   driveTick(identity: AuthIdentity, input: DriveTickInput): Promise<DriveTickResult>;
   completeLandmark(identity: AuthIdentity, input: CompleteLandmarkInput): Promise<CompleteLandmarkResult>;
   claimOfflineReport(identity: AuthIdentity, input: ClaimOfflineReportInput): Promise<ClaimOfflineReportResult>;
+  completeRoute(identity: AuthIdentity, input: CompleteRouteInput): Promise<CompleteRouteResult>;
   maintainVehicle(identity: AuthIdentity, input: VehicleMaintenanceInput): Promise<VehicleMaintenanceResult>;
 }

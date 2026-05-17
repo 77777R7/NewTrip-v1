@@ -1,11 +1,13 @@
-import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import {
   AuthIdentity,
   GAME_DATA_STORE,
   GameDataStore,
   RouteDefinition,
+  RouteUnlockResult,
   StartTripInput,
   Trip,
+  UnlockRouteInput,
 } from '../database/game-data-store';
 
 @Injectable()
@@ -40,6 +42,20 @@ export class RoutesService {
     }
   }
 
+  async unlock(identity: AuthIdentity, input: UnlockRouteInput): Promise<RouteUnlockResult> {
+    try {
+      if (!input.routeId) {
+        throw new Error('ROUTE_ID_REQUIRED');
+      }
+      if (!input.idempotencyKey) {
+        throw new Error('IDEMPOTENCY_KEY_REQUIRED');
+      }
+      return await this.gameDataStore.unlockRoute(identity, input);
+    } catch (error) {
+      throw this.toHttpError(error);
+    }
+  }
+
   private toHttpError(error: unknown): Error {
     if (!(error instanceof Error)) {
       return new Error('Route operation failed');
@@ -49,7 +65,11 @@ export class RoutesService {
       return new NotFoundException(error.message);
     }
 
-    if (['ACTIVE_TRIP_EXISTS', 'ROUTE_LOCKED'].includes(error.message)) {
+    if (['ROUTE_ID_REQUIRED', 'IDEMPOTENCY_KEY_REQUIRED'].includes(error.message)) {
+      return new BadRequestException(error.message);
+    }
+
+    if (['ACTIVE_TRIP_EXISTS', 'ROUTE_LOCKED', 'INSUFFICIENT_FUNDS'].includes(error.message)) {
       return new ConflictException(error.message);
     }
 

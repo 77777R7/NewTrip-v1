@@ -5,6 +5,8 @@ import {
   ClaimOfflineReportResult,
   CompleteLandmarkInput,
   CompleteLandmarkResult,
+  CompleteRouteInput,
+  CompleteRouteResult,
   DriveTickInput,
   DriveTickResult,
   GAME_DATA_STORE,
@@ -74,6 +76,21 @@ export class TripService {
     }
   }
 
+  async completeRoute(identity: AuthIdentity, input: CompleteRouteInput): Promise<CompleteRouteResult> {
+    try {
+      if (!input.tripId) {
+        throw new Error('TRIP_ID_REQUIRED');
+      }
+      if (!input.idempotencyKey) {
+        throw new Error('IDEMPOTENCY_KEY_REQUIRED');
+      }
+
+      return await this.gameDataStore.completeRoute(identity, input);
+    } catch (error) {
+      throw this.toHttpError(error);
+    }
+  }
+
   private toHttpError(error: unknown): Error {
     if (!(error instanceof Error)) {
       return new Error('Trip operation failed');
@@ -105,6 +122,9 @@ export class TripService {
         'LANDMARK_STOP_REQUIRED',
         'LANDMARK_ALREADY_COMPLETED',
         'REPORT_ALREADY_CLAIMED',
+        'ROUTE_NOT_COMPLETE',
+        'REQUIRED_LANDMARKS_INCOMPLETE',
+        'ROUTE_ALREADY_COMPLETED',
       ].includes(error.message)
     ) {
       return new ConflictException(error.message);

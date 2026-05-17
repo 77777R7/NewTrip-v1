@@ -19,6 +19,13 @@ type AbandonRouteBody = {
   idempotency_key?: string;
 };
 
+type UnlockRouteBody = {
+  routeId?: string;
+  route_id?: string;
+  idempotencyKey?: string;
+  idempotency_key?: string;
+};
+
 @Controller('routes')
 export class RoutesController {
   constructor(private readonly routesService: RoutesService) {}
@@ -47,6 +54,15 @@ export class RoutesController {
     return this.routesService.abandon(getRequestAuthIdentity(request), {
       tripId: body.tripId ?? body.trip_id,
       idempotencyKey: body.idempotencyKey ?? body.idempotency_key ?? `abandon:${body.tripId ?? body.trip_id ?? 'current'}`,
+    });
+  }
+
+  @Post('unlock')
+  unlock(@Req() request: Request, @Body() body: UnlockRouteBody) {
+    const routeId = body.routeId ?? body.route_id ?? '';
+    return this.routesService.unlock(getRequestAuthIdentity(request), {
+      routeId,
+      idempotencyKey: body.idempotencyKey ?? body.idempotency_key ?? `unlock:${routeId}`,
     });
   }
 }

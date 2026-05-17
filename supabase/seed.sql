@@ -129,11 +129,11 @@ insert into public.route_definitions (
   (
     '00000000-0000-4000-8000-000000000301',
     '00000000-0000-4000-8000-000000000001',
-    'tutorial_coast_001',
-    'Bay Town to Lighthouse Road',
-    'Starter Coast',
-    'Bay Town',
-    'Lighthouse Road',
+    'tutorial_big_sur_hwy1_001',
+    'Big Sur Sunset Drive',
+    'California Highway 1',
+    'Carmel Highlands',
+    'San Carpoforo Creek Approach',
     'Tutorial',
     100,
     1,
@@ -142,29 +142,29 @@ insert into public.route_definitions (
     1.0,
     '00000000-0000-4000-8000-000000000201',
     '{"profile_key": "default_day", "game_time_speed_multiplier": 10}'::jsonb,
-    'bg_coast_pixel_v1',
+    'bg_big_sur_sunset_v1',
     true
   ),
   (
     '00000000-0000-4000-8000-000000000302',
     '00000000-0000-4000-8000-000000000001',
-    'short_forest_001',
-    'Pine Loop Scenic Drive',
-    'Starter Forest',
-    'Lighthouse Road',
-    'Pine Loop',
+    'short_coast_to_town_001',
+    'Big Sur to Santa Cruz Drive',
+    'California Central Coast',
+    'Monterey Bay',
+    'Santa Cruz Boardwalk',
     'Short',
-    180,
+    95,
     2,
-    2,
+    1,
     70,
     1.08,
     '00000000-0000-4000-8000-000000000201',
     '{"profile_key": "default_day", "game_time_speed_multiplier": 10}'::jsonb,
-    'bg_forest_pixel_v1',
+    'bg_santa_cruz_sunset_v1',
     true
   )
-on conflict (config_version_id, route_key) do update set
+on conflict (route_id) do update set
   name = excluded.name,
   region = excluded.region,
   start_node = excluded.start_node,
@@ -194,12 +194,12 @@ insert into public.route_segments (
   cleanliness_multiplier,
   durability_multiplier
 ) values
-  ('00000000-0000-4000-8000-000000000301', '00000000-0000-4000-8000-000000000401', 0, 0, 34, 'coast', 'coast', 'bg_coast_morning', 1.00, 1.00, 1.00, 1.00),
-  ('00000000-0000-4000-8000-000000000301', '00000000-0000-4000-8000-000000000402', 1, 34, 70, 'forest', 'forest', 'bg_forest_day', 0.92, 1.00, 1.08, 1.02),
-  ('00000000-0000-4000-8000-000000000301', '00000000-0000-4000-8000-000000000403', 2, 70, 100, 'highway', 'coast', 'bg_coast_highway', 1.08, 0.95, 0.95, 0.95),
-  ('00000000-0000-4000-8000-000000000302', '00000000-0000-4000-8000-000000000411', 0, 0, 60, 'forest', 'forest', 'bg_forest_entry', 0.96, 1.05, 1.10, 1.04),
-  ('00000000-0000-4000-8000-000000000302', '00000000-0000-4000-8000-000000000412', 1, 60, 120, 'mountain', 'forest', 'bg_forest_mountain', 0.88, 1.12, 1.06, 1.10),
-  ('00000000-0000-4000-8000-000000000302', '00000000-0000-4000-8000-000000000413', 2, 120, 180, 'highway', 'forest', 'bg_forest_return', 1.05, 0.98, 0.98, 0.98)
+  ('00000000-0000-4000-8000-000000000301', '00000000-0000-4000-8000-000000000401', 0, 0, 35, 'coastal_cliffs', 'coast', 'bg_big_sur_cliffs_sunset', 1.00, 1.00, 1.00, 1.00),
+  ('00000000-0000-4000-8000-000000000301', '00000000-0000-4000-8000-000000000402', 1, 35, 70, 'bridge_coast', 'coast', 'bg_bixby_bridge_sunset', 0.92, 1.00, 1.08, 1.02),
+  ('00000000-0000-4000-8000-000000000301', '00000000-0000-4000-8000-000000000403', 2, 70, 100, 'south_coast_highway', 'coast', 'bg_south_big_sur_sunset', 1.08, 0.95, 0.95, 0.95),
+  ('00000000-0000-4000-8000-000000000302', '00000000-0000-4000-8000-000000000411', 0, 0, 30, 'monterey_bay_coast', 'coastal_town', 'bg_monterey_bay_sunset', 1.00, 1.00, 1.00, 1.00),
+  ('00000000-0000-4000-8000-000000000302', '00000000-0000-4000-8000-000000000412', 1, 30, 65, 'coastal_town', 'coastal_town', 'bg_capitola_sunset', 0.96, 1.02, 1.04, 1.00),
+  ('00000000-0000-4000-8000-000000000302', '00000000-0000-4000-8000-000000000413', 2, 65, 95, 'boardwalk_approach', 'city_coast', 'bg_santa_cruz_boardwalk_sunset', 1.04, 0.98, 0.98, 0.98)
 on conflict (route_id, segment_index) do update set
   start_km = excluded.start_km,
   end_km = excluded.end_km,
@@ -229,31 +229,31 @@ insert into public.landmarks (
     '00000000-0000-4000-8000-000000000501',
     '00000000-0000-4000-8000-000000000301',
     '00000000-0000-4000-8000-000000000001',
-    'first_lighthouse',
-    'First Lighthouse',
+    'bixby_bridge_lookout',
+    'Bixby Bridge Lookout',
     40,
     'Common',
     true,
     80,
-    'photo_first_lighthouse_v1',
+    'photo_bixby_bridge_v1',
     'tutorial_album_v1',
-    '{"tutorial_first_photo": true}'::jsonb
+    '{"tutorial_first_photo": true, "real_route_reference": "Bixby Creek Bridge"}'::jsonb
   ),
   (
     '00000000-0000-4000-8000-000000000502',
     '00000000-0000-4000-8000-000000000302',
     '00000000-0000-4000-8000-000000000001',
-    'pine_bridge',
-    'Pine Bridge',
-    75,
+    'santa_cruz_boardwalk',
+    'Santa Cruz Boardwalk',
+    82,
     'Common',
     true,
     90,
-    'photo_pine_bridge_v1',
-    'starter_forest_album_v1',
-    '{}'::jsonb
+    'photo_santa_cruz_boardwalk_v1',
+    'santa_cruz_album_v1',
+    '{"destination_landmark": true}'::jsonb
   )
-on conflict (route_id, landmark_key) do update set
+on conflict (landmark_id) do update set
   name = excluded.name,
   distance_km = excluded.distance_km,
   rarity = excluded.rarity,

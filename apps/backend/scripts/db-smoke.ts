@@ -73,14 +73,14 @@ assertIncludes(migrationSql, "where status = 'LIVE'".toLowerCase(), 'single LIVE
 
 assertIncludes(seedSqlLower, "'live'", 'seed must create a LIVE config version');
 assertIncludes(seedSql, "'van_common_001'", 'seed must include default vehicle');
-assertIncludes(seedSql, "'tutorial_coast_001'", 'seed must include Tutorial Route');
-assertIncludes(seedSql, "'short_forest_001'", 'seed must include Short Route');
+assertIncludes(seedSql, "'tutorial_big_sur_hwy1_001'", 'seed must include Tutorial Route');
+assertIncludes(seedSql, "'short_coast_to_town_001'", 'seed must include Short Route');
 assertIncludes(seedSql, "'coast_easy'", 'seed must include weather profile');
-assertIncludes(seedSql, "'first_lighthouse'", 'seed must include first required landmark');
+assertIncludes(seedSql, "'bixby_bridge_lookout'", 'seed must include first required landmark');
 
 const tutorialSegments = [
-  [0, 0, 34],
-  [1, 34, 70],
+  [0, 0, 35],
+  [1, 35, 70],
   [2, 70, 100],
 ] as const;
 
@@ -101,10 +101,10 @@ assert(yamlNumber(vehicleYaml, 'cleanliness_loss_per_km') === 0.035, 'default ve
 assert(yamlNumber(vehicleYaml, 'durability_loss_per_km') === 0.018, 'default vehicle durability loss must be 0.018/km');
 assert(yamlNumber(vehicleYaml, 'offline_efficiency') === 0.6, 'default vehicle offline efficiency must be 0.60');
 
-const shortUnlockMatch = seedSql.match(/'short_forest_001'[\s\S]*?'Short'[\s\S]*?180[\s\S]*?2[\s\S]*?2[\s\S]*?70/);
+const shortUnlockMatch = seedSql.match(/'short_coast_to_town_001'[\s\S]*?'Short'[\s\S]*?95[\s\S]*?2[\s\S]*?1[\s\S]*?70/);
 assert(Boolean(shortUnlockMatch), 'Short Route must cost 1-2 Souvenir Stamps and have a Road Coins prep fee');
 
-const firstLandmarkMatch = seedSql.match(/'first_lighthouse'[\s\S]*?'First Lighthouse'[\s\S]*?40[\s\S]*?'Common'[\s\S]*?true/);
+const firstLandmarkMatch = seedSql.match(/'bixby_bridge_lookout'[\s\S]*?'Bixby Bridge Lookout'[\s\S]*?40[\s\S]*?'Common'[\s\S]*?true/);
 assert(Boolean(firstLandmarkMatch), 'first Tutorial landmark must be required and inside the 0-100 km route');
 
 console.log(`db:smoke ok - ${migrationFile} and Day 2 seed data satisfy the base acceptance checks.`);

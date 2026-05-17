@@ -1,6 +1,9 @@
 route:
-  route_key: tutorial_coast_001
-  name: "Bay Town to Lighthouse Road"
+  route_key: tutorial_big_sur_hwy1_001
+  name: "Big Sur Sunset Drive"
+  region: "California Highway 1"
+  start_node: "Carmel Highlands"
+  destination_node: "San Carpoforo Creek Approach"
   route_type: Tutorial
   total_distance_km: 100
   difficulty: 1
@@ -9,21 +12,21 @@ route:
   reward_multiplier: 1.0
   weather_profile_key: coast_easy
   day_night_profile_key: default_day
-  background_pack_id: bg_coast_pixel_v1
+  background_pack_id: bg_big_sur_sunset_v1
 
 segments:
   - index: 0
     start_km: 0
-    end_km: 34
-    terrain: coast
+    end_km: 35
+    terrain: coastal_cliffs
     speed_multiplier: 1.0
     fuel_multiplier: 1.0
     cleanliness_multiplier: 1.0
     durability_multiplier: 1.0
   - index: 1
-    start_km: 34
+    start_km: 35
     end_km: 70
-    terrain: forest
+    terrain: bridge_coast
     speed_multiplier: 0.92
     fuel_multiplier: 1.0
     cleanliness_multiplier: 1.08
@@ -31,17 +34,17 @@ segments:
   - index: 2
     start_km: 70
     end_km: 100
-    terrain: highway
+    terrain: south_coast_highway
     speed_multiplier: 1.08
     fuel_multiplier: 0.95
     cleanliness_multiplier: 0.95
     durability_multiplier: 0.95
 
 landmarks:
-  - landmark_key: first_lighthouse
-    name: "First Lighthouse"
+  - landmark_key: bixby_bridge_lookout
+    name: "Bixby Bridge Lookout"
     distance_km: 40
     required_stop: true
     rarity: Common
     base_photo_coins: 80
-    photo_card_key: photo_first_lighthouse_v1
+    photo_card_key: photo_bixby_bridge_v1

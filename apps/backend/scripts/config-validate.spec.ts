@@ -29,7 +29,7 @@ describe('config validation', () => {
 
     expect(route).toMatchObject({
       route: {
-        route_key: 'tutorial_coast_001',
+        route_key: 'tutorial_big_sur_hwy1_001',
         total_distance_km: 100,
       },
     });

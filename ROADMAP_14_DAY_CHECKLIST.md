@@ -265,39 +265,39 @@ Goal: online driving advances distance, consumes vehicle state, grants rewards, 
 
 API:
 
-- [ ] Implement `POST /trip/drive-tick`.
+- [x] Implement `POST /trip/drive-tick`.
 
 Backend flow:
 
-- [ ] Authenticate.
-- [ ] `SELECT trip FOR UPDATE`.
-- [ ] `SELECT vehicle FOR UPDATE`.
-- [ ] Check `trip.status = ACTIVE`.
-- [ ] Check mode is unlocked.
-- [ ] Use `server_now - last_simulated_at` for duration.
-- [ ] Clamp `max_online_tick_seconds`.
-- [ ] Calculate distance gain.
-- [ ] Check forced stop.
-- [ ] Deduct fuel, cleanliness, and durability.
-- [ ] Update `trip.current_distance_km`.
-- [ ] Grant Road Coins and Travel Tokens.
-- [ ] Write wallet transactions.
-- [ ] Write analytics events.
-- [ ] Return result.
+- [x] Authenticate.
+- [x] `SELECT trip FOR UPDATE`.
+- [x] `SELECT vehicle FOR UPDATE`.
+- [x] Check `trip.status = ACTIVE`.
+- [x] Check mode is unlocked.
+- [x] Use `server_now - last_simulated_at` for duration.
+- [x] Clamp `max_online_tick_seconds`.
+- [x] Calculate distance gain.
+- [x] Check forced stop.
+- [x] Deduct fuel, cleanliness, and durability.
+- [x] Update `trip.current_distance_km`.
+- [x] Grant Road Coins and Travel Tokens.
+- [x] Write wallet transactions.
+- [x] Write analytics events.
+- [x] Return result.
 
 Acceptance:
 
-- [ ] Drive tick advances distance.
-- [ ] Fuel decreases.
-- [ ] Cleanliness decreases.
-- [ ] Durability decreases.
-- [ ] Road Coins enter wallet.
-- [ ] Travel Token meter works.
-- [ ] 40 km landmark triggers forced stop.
-- [ ] Forced stop blocks further drive tick.
-- [ ] Tick is idempotent.
-- [ ] Tick duration is clamped.
-- [ ] Low fuel, landmark, and route-end tests pass.
+- [x] Drive tick advances distance.
+- [x] Fuel decreases.
+- [x] Cleanliness decreases.
+- [x] Durability decreases.
+- [x] Road Coins enter wallet.
+- [x] Travel Token meter works.
+- [x] 40 km landmark triggers forced stop.
+- [x] Forced stop blocks further drive tick.
+- [x] Tick is idempotent.
+- [x] Tick duration is clamped.
+- [x] Low fuel, landmark, and route-end tests pass.
 
 ## Day 7: Tutorial State Machine And First Landmark Photo
 
@@ -680,3 +680,4 @@ Trip Simulation Engine
 - 2026-05-16: Clarified art generation policy: V1 uses ChatGPT Image 2.0-first for fast draft exploration, while ComfyUI/Leonardo remain later repeatable production-factory options under the same scene-pack contract.
 - 2026-05-16: Completed pre-Day-5 cleanup gate: expanded remaining inline config YAML, added parser-backed YAML validation, added `config:validate-yaml`, and covered config validation with unit tests.
 - 2026-05-16: Completed Day 5 Trip Simulation Engine pure functions with typed simulation inputs, default constants, distance/consumption/offline/forced-stop/reward formulas, and focused unit tests.
+- 2026-05-16: Completed Day 6 online drive tick: `/trip/drive-tick`, backend-authoritative distance/vehicle/wallet updates, tick idempotency, max-duration clamp, landmark forced stop, analytics event writes, and route-end/low-fuel tests.

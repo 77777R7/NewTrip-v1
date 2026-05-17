@@ -39,6 +39,13 @@ export type PlayerVehicle = {
   vehicleDefId: string;
   vehicleKey: string;
   displayName: string;
+  baseSpeedKmph: number;
+  fuelCapacity: number;
+  fuelConsumptionPerKm: number;
+  durabilityLossPerKm: number;
+  cleanlinessLossPerKm: number;
+  offlineEfficiency: number;
+  weatherResistance: number;
   currentFuel: number;
   currentDurability: number;
   currentCleanliness: number;
@@ -149,6 +156,34 @@ export type AbandonTripInput = {
   idempotencyKey: string;
 };
 
+export type DriveTickInput = {
+  tripId: string;
+  mode: 'HOLD_TO_DRIVE' | 'AUTO_DRIVING' | 'HOLD_TO_BOOST';
+  clientTickSeq: number;
+  idempotencyKey: string;
+};
+
+export type DriveTickResult = {
+  trip: Trip;
+  vehicle: PlayerVehicle;
+  durationSeconds: number;
+  rawDistanceGainKm: number;
+  distanceGainKm: number;
+  finalDistanceKm: number;
+  forcedStopReason: string | null;
+  landmarkId?: string;
+  fuelUsed: number;
+  cleanlinessLoss: number;
+  durabilityLoss: number;
+  rewards: {
+    roadCoins: number;
+    travelTokens: number;
+    tokenMeterKm: number;
+  };
+  walletBalances: WalletBalance[];
+  walletTransactions: WalletTransaction[];
+};
+
 export interface GameDataStore {
   getOrCreatePlayerState(identity: AuthIdentity): Promise<PlayerState>;
   getOrCreatePlayerProfile(identity: AuthIdentity): Promise<PlayerProfile>;
@@ -160,4 +195,5 @@ export interface GameDataStore {
   getCurrentTrip(identity: AuthIdentity): Promise<Trip | null>;
   startTrip(identity: AuthIdentity, input: StartTripInput): Promise<Trip>;
   abandonTrip(identity: AuthIdentity, input: AbandonTripInput): Promise<Trip>;
+  driveTick(identity: AuthIdentity, input: DriveTickInput): Promise<DriveTickResult>;
 }

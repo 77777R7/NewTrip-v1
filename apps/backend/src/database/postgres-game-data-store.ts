@@ -6,6 +6,8 @@ import {
   CURRENCIES,
   Currency,
   AbandonTripInput,
+  DriveTickInput,
+  DriveTickResult,
   GameDataStore,
   Landmark,
   PlayerProfile,
@@ -19,6 +21,7 @@ import {
   WalletMutationInput,
   WalletTransaction,
 } from './game-data-store';
+import { isOnlineDriveModeUnlocked, simulateOnlineDriveTick } from '../modules/simulation/online-drive-tick';
 
 @Injectable()
 export class PostgresGameDataStore implements GameDataStore, OnModuleDestroy {
@@ -367,96 +370,435 @@ export class PostgresGameDataStore implements GameDataStore, OnModuleDestroy {
     }
   }
 
-  private async mutateWallet(input: WalletMutationInput, signedAmount: number): Promise<WalletTransaction> {
+  async driveTick(identity: AuthIdentity, input: DriveTickInput): Promise<DriveTickResult> {
     const client = await this.pool.connect();
     try {
       await client.query('begin');
+      const profile = await this.getOrCreatePlayerProfileInTransaction(client, identity);
+      await this.ensurePlayerDefaultsInTransaction(client, profile.playerId);
 
-      const existingTx = await client.query(
+      const existingForKey = await client.query(
         `
-          select *
-          from public.wallet_transactions
+          select result_payload
+          from public.trip_drive_ticks
           where player_id = $1 and idempotency_key = $2
-        `,
-        [input.playerId, input.idempotencyKey],
-      );
-      if (existingTx.rowCount) {
-        await client.query('commit');
-        return this.toWalletTransaction(existingTx.rows[0]);
-      }
-
-      await client.query(
-        `
-          insert into public.wallet_balances (player_id, currency, balance)
-          values ($1, $2, 0)
-          on conflict (player_id, currency) do nothing
-        `,
-        [input.playerId, input.currency],
-      );
-
-      const balanceResult = await client.query(
-        `
-          select balance
-          from public.wallet_balances
-          where player_id = $1 and currency = $2
+          limit 1
           for update
         `,
-        [input.playerId, input.currency],
+        [profile.playerId, input.idempotencyKey],
       );
-      const balanceBefore = Number(balanceResult.rows[0].balance);
-      const balanceAfter = balanceBefore + signedAmount;
-
-      if (balanceAfter < 0) {
-        throw new Error('INSUFFICIENT_FUNDS');
+      if (existingForKey.rowCount) {
+        await client.query('commit');
+        return existingForKey.rows[0].result_payload as DriveTickResult;
       }
 
-      await client.query(
+      const tripResult = await client.query(
         `
-          update public.wallet_balances
-          set balance = $3, updated_at = now()
-          where player_id = $1 and currency = $2
+          select *
+          from public.player_trips
+          where player_id = $1 and trip_id = $2
+          for update
         `,
-        [input.playerId, input.currency, balanceAfter],
+        [profile.playerId, input.tripId],
+      );
+      if (!tripResult.rowCount) {
+        throw new Error('TRIP_NOT_FOUND');
+      }
+
+      const trip = this.toTrip(tripResult.rows[0]);
+      if (trip.status !== 'ACTIVE') {
+        throw new Error('TRIP_NOT_ACTIVE');
+      }
+      if (!isOnlineDriveModeUnlocked(profile.tutorialState, input.mode)) {
+        throw new Error('MODE_LOCKED');
+      }
+
+      const vehicleResult = await client.query(
+        `
+          select
+            pv.*,
+            vd.vehicle_key,
+            vd.display_name,
+            vd.base_speed_kmph,
+            vd.fuel_capacity,
+            vd.fuel_consumption_per_km,
+            vd.durability_loss_per_km,
+            vd.cleanliness_loss_per_km,
+            vd.offline_efficiency,
+            vd.weather_resistance
+          from public.player_vehicles pv
+          join public.vehicle_definitions vd on vd.vehicle_def_id = pv.vehicle_def_id
+          where pv.player_id = $1 and pv.player_vehicle_id = $2
+          for update
+        `,
+        [profile.playerId, trip.playerVehicleId],
+      );
+      if (!vehicleResult.rowCount) {
+        throw new Error('VEHICLE_NOT_FOUND');
+      }
+
+      const routeResult = await client.query(
+        `
+          select rd.*, true as is_unlocked
+          from public.route_definitions rd
+          where rd.route_id = $1
+          limit 1
+        `,
+        [trip.routeId],
+      );
+      if (!routeResult.rowCount) {
+        throw new Error('ROUTE_NOT_FOUND');
+      }
+
+      const segmentsResult = await client.query(
+        `
+          select *
+          from public.route_segments
+          where route_id = $1
+          order by segment_index asc
+        `,
+        [trip.routeId],
+      );
+      const landmarksResult = await client.query(
+        `
+          select *
+          from public.landmarks
+          where route_id = $1
+          order by distance_km asc
+        `,
+        [trip.routeId],
       );
 
-      const transactionResult = await client.query(
+      const route = {
+        ...this.toRouteDefinition(routeResult.rows[0]),
+        segments: segmentsResult.rows.map((row) => this.toRouteSegment(row)),
+        landmarks: landmarksResult.rows.map((row) => this.toLandmark(row)),
+      };
+      const vehicle = this.toPlayerVehicle(vehicleResult.rows[0]);
+      const now = new Date();
+      const simulation = simulateOnlineDriveTick({
+        mode: input.mode,
+        now,
+        lastSimulatedAt: new Date(trip.lastSimulatedAt),
+        currentDistanceKm: trip.currentDistanceKm,
+        elapsedRealSeconds: trip.elapsedRealSeconds,
+        previousOnlineTokenMeterKm: trip.onlineTokenMeterKm,
+        routeTotalDistanceKm: route.totalDistanceKm,
+        routeRewardMultiplier: route.rewardMultiplier,
+        vehicle,
+        segments: route.segments,
+        landmarks: route.landmarks.map((landmark) => ({
+          landmarkId: landmark.landmarkId,
+          distanceKm: landmark.distanceKm,
+          requiredStop: landmark.requiredStop,
+        })),
+      });
+
+      const updatedTripResult = await client.query(
         `
-          insert into public.wallet_transactions (
-            player_id,
-            currency,
-            amount,
-            balance_before,
-            balance_after,
-            reason,
-            source_type,
-            source_id,
-            idempotency_key,
-            metadata
-          )
-          values ($1, $2, $3, $4, $5, $6, $7, $8, $9, '{}'::jsonb)
+          update public.player_trips
+          set current_distance_km = $2,
+              elapsed_real_seconds = $3,
+              online_token_meter_km = $4,
+              last_simulated_at = $5,
+              status = $6,
+              forced_stop_reason = $7,
+              metadata = metadata || jsonb_build_object('last_drive_tick_seq', $8)
+          where trip_id = $1
           returning *
         `,
         [
-          input.playerId,
-          input.currency,
-          signedAmount,
-          balanceBefore,
-          balanceAfter,
-          input.reason,
-          input.sourceType,
-          input.sourceId ?? null,
+          trip.tripId,
+          simulation.finalDistanceKm,
+          simulation.updatedElapsedRealSeconds,
+          simulation.updatedOnlineTokenMeterKm,
+          now.toISOString(),
+          simulation.updatedTripStatus,
+          simulation.forcedStopReason,
+          input.clientTickSeq,
+        ],
+      );
+
+      await client.query(
+        `
+          update public.player_vehicles
+          set current_fuel = $2,
+              current_cleanliness = $3,
+              current_durability = $4,
+              total_distance_km = total_distance_km + $5,
+              version = version + 1
+          where player_vehicle_id = $1
+        `,
+        [
+          vehicle.playerVehicleId,
+          simulation.updatedFuel,
+          simulation.updatedCleanliness,
+          simulation.updatedDurability,
+          simulation.distanceGainKm,
+        ],
+      );
+
+      const updatedVehicle: PlayerVehicle = {
+        ...vehicle,
+        currentFuel: simulation.updatedFuel,
+        currentCleanliness: simulation.updatedCleanliness,
+        currentDurability: simulation.updatedDurability,
+      };
+
+      const walletTransactions: WalletTransaction[] = [];
+      if (simulation.rewards.roadCoins > 0) {
+        walletTransactions.push(
+          await this.mutateWalletInTransaction(client, {
+            playerId: profile.playerId,
+            currency: 'ROAD_COINS',
+            amount: simulation.rewards.roadCoins,
+            reason: 'ONLINE_DRIVE_REWARD',
+            sourceType: 'TRIP_DRIVE_TICK',
+            sourceId: trip.tripId,
+            idempotencyKey: `${input.idempotencyKey}:road_coins`,
+          }, simulation.rewards.roadCoins),
+        );
+      }
+      if (simulation.rewards.travelTokens > 0) {
+        walletTransactions.push(
+          await this.mutateWalletInTransaction(client, {
+            playerId: profile.playerId,
+            currency: 'TRAVEL_TOKENS',
+            amount: simulation.rewards.travelTokens,
+            reason: 'ONLINE_DRIVE_REWARD',
+            sourceType: 'TRIP_DRIVE_TICK',
+            sourceId: trip.tripId,
+            idempotencyKey: `${input.idempotencyKey}:travel_tokens`,
+          }, simulation.rewards.travelTokens),
+        );
+      }
+
+      const result: DriveTickResult = {
+        trip: {
+          ...this.toTrip(updatedTripResult.rows[0]),
+          route,
+        },
+        vehicle: updatedVehicle,
+        durationSeconds: simulation.durationSeconds,
+        rawDistanceGainKm: simulation.rawDistanceGainKm,
+        distanceGainKm: simulation.distanceGainKm,
+        finalDistanceKm: simulation.finalDistanceKm,
+        forcedStopReason: simulation.forcedStopReason,
+        ...(simulation.landmarkId ? { landmarkId: simulation.landmarkId } : {}),
+        fuelUsed: simulation.fuelUsed,
+        cleanlinessLoss: simulation.cleanlinessLoss,
+        durabilityLoss: simulation.durabilityLoss,
+        rewards: simulation.rewards,
+        walletBalances: await this.getWalletBalancesInTransaction(client, profile.playerId),
+        walletTransactions,
+      };
+
+      await this.insertAnalyticsEventInTransaction(client, {
+        playerId: profile.playerId,
+        eventName: 'drive_tick',
+        sourceType: 'TRIP',
+        sourceId: trip.tripId,
+        payload: {
+          mode: input.mode,
+          client_tick_seq: input.clientTickSeq,
+          duration_seconds: simulation.durationSeconds,
+          distance_gain_km: simulation.distanceGainKm,
+          forced_stop_reason: simulation.forcedStopReason,
+          road_coins: simulation.rewards.roadCoins,
+          travel_tokens: simulation.rewards.travelTokens,
+        },
+      });
+      if (simulation.forcedStopReason === 'LANDMARK_REQUIRED') {
+        await this.insertAnalyticsEventInTransaction(client, {
+          playerId: profile.playerId,
+          eventName: 'stopped_at_landmark',
+          sourceType: 'TRIP',
+          sourceId: trip.tripId,
+          payload: {
+            landmark_id: simulation.landmarkId,
+            distance_km: simulation.finalDistanceKm,
+          },
+        });
+      }
+
+      await client.query(
+        `
+          insert into public.trip_drive_ticks (
+            player_id,
+            trip_id,
+            idempotency_key,
+            client_tick_seq,
+            mode,
+            duration_seconds,
+            distance_gain_km,
+            final_distance_km,
+            forced_stop_reason,
+            rewards,
+            result_payload
+          )
+          values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11::jsonb)
+        `,
+        [
+          profile.playerId,
+          trip.tripId,
           input.idempotencyKey,
+          input.clientTickSeq,
+          input.mode,
+          simulation.durationSeconds,
+          simulation.distanceGainKm,
+          simulation.finalDistanceKm,
+          simulation.forcedStopReason,
+          JSON.stringify(simulation.rewards),
+          JSON.stringify(result),
         ],
       );
 
       await client.query('commit');
-      return this.toWalletTransaction(transactionResult.rows[0]);
+      return result;
     } catch (error) {
       await client.query('rollback');
       throw error;
     } finally {
       client.release();
     }
+  }
+
+  private async mutateWallet(input: WalletMutationInput, signedAmount: number): Promise<WalletTransaction> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('begin');
+      const transaction = await this.mutateWalletInTransaction(client, input, signedAmount);
+      await client.query('commit');
+      return transaction;
+    } catch (error) {
+      await client.query('rollback');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  private async mutateWalletInTransaction(
+    client: PoolClient,
+    input: WalletMutationInput,
+    signedAmount: number,
+  ): Promise<WalletTransaction> {
+    const existingTx = await client.query(
+      `
+        select *
+        from public.wallet_transactions
+        where player_id = $1 and idempotency_key = $2
+      `,
+      [input.playerId, input.idempotencyKey],
+    );
+    if (existingTx.rowCount) {
+      return this.toWalletTransaction(existingTx.rows[0]);
+    }
+
+    await client.query(
+      `
+        insert into public.wallet_balances (player_id, currency, balance)
+        values ($1, $2, 0)
+        on conflict (player_id, currency) do nothing
+      `,
+      [input.playerId, input.currency],
+    );
+
+    const balanceResult = await client.query(
+      `
+        select balance
+        from public.wallet_balances
+        where player_id = $1 and currency = $2
+        for update
+      `,
+      [input.playerId, input.currency],
+    );
+    const balanceBefore = Number(balanceResult.rows[0].balance);
+    const balanceAfter = balanceBefore + signedAmount;
+
+    if (balanceAfter < 0) {
+      throw new Error('INSUFFICIENT_FUNDS');
+    }
+
+    await client.query(
+      `
+        update public.wallet_balances
+        set balance = $3, updated_at = now()
+        where player_id = $1 and currency = $2
+      `,
+      [input.playerId, input.currency, balanceAfter],
+    );
+
+    const transactionResult = await client.query(
+      `
+        insert into public.wallet_transactions (
+          player_id,
+          currency,
+          amount,
+          balance_before,
+          balance_after,
+          reason,
+          source_type,
+          source_id,
+          idempotency_key,
+          metadata
+        )
+        values ($1, $2, $3, $4, $5, $6, $7, $8, $9, '{}'::jsonb)
+        returning *
+      `,
+      [
+        input.playerId,
+        input.currency,
+        signedAmount,
+        balanceBefore,
+        balanceAfter,
+        input.reason,
+        input.sourceType,
+        input.sourceId ?? null,
+        input.idempotencyKey,
+      ],
+    );
+
+    return this.toWalletTransaction(transactionResult.rows[0]);
+  }
+
+  private async getWalletBalancesInTransaction(client: PoolClient, playerId: string): Promise<WalletBalance[]> {
+    const result = await client.query(
+      `
+        select currency, balance
+        from public.wallet_balances
+        where player_id = $1
+        order by array_position($2::text[], currency)
+      `,
+      [playerId, CURRENCIES],
+    );
+
+    return result.rows.map((row) => this.toWalletBalance(row));
+  }
+
+  private async insertAnalyticsEventInTransaction(
+    client: PoolClient,
+    input: {
+      playerId: string;
+      eventName: string;
+      sourceType: string;
+      sourceId: string;
+      payload: Record<string, unknown>;
+    },
+  ): Promise<void> {
+    await client.query(
+      `
+        insert into public.analytics_events (
+          player_id,
+          event_name,
+          source_type,
+          source_id,
+          event_payload
+        )
+        values ($1, $2, $3, $4, $5::jsonb)
+      `,
+      [input.playerId, input.eventName, input.sourceType, input.sourceId, JSON.stringify(input.payload)],
+    );
   }
 
   private async getOrCreatePlayerProfileInTransaction(
@@ -573,7 +915,14 @@ export class PostgresGameDataStore implements GameDataStore, OnModuleDestroy {
         select
           pv.*,
           vd.vehicle_key,
-          vd.display_name
+          vd.display_name,
+          vd.base_speed_kmph,
+          vd.fuel_capacity,
+          vd.fuel_consumption_per_km,
+          vd.durability_loss_per_km,
+          vd.cleanliness_loss_per_km,
+          vd.offline_efficiency,
+          vd.weather_resistance
         from public.player_vehicles pv
         join public.vehicle_definitions vd on vd.vehicle_def_id = pv.vehicle_def_id
         where pv.player_id = $1
@@ -675,6 +1024,13 @@ export class PostgresGameDataStore implements GameDataStore, OnModuleDestroy {
       vehicleDefId: row.vehicle_def_id,
       vehicleKey: row.vehicle_key,
       displayName: row.display_name,
+      baseSpeedKmph: Number(row.base_speed_kmph),
+      fuelCapacity: Number(row.fuel_capacity),
+      fuelConsumptionPerKm: Number(row.fuel_consumption_per_km),
+      durabilityLossPerKm: Number(row.durability_loss_per_km),
+      cleanlinessLossPerKm: Number(row.cleanliness_loss_per_km),
+      offlineEfficiency: Number(row.offline_efficiency),
+      weatherResistance: Number(row.weather_resistance),
       currentFuel: Number(row.current_fuel),
       currentDurability: Number(row.current_durability),
       currentCleanliness: Number(row.current_cleanliness),

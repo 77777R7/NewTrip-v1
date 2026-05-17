@@ -19,6 +19,9 @@ export const DEFAULT_SIMULATION_CONFIG = {
     onlineKmPerToken: 10,
     offlineKmPerToken: 20,
   },
+  online: {
+    maxOnlineTickSeconds: 15,
+  },
   offline: {
     baseOfflineSpeedKmph: 30,
     maxOfflineHours: 8,

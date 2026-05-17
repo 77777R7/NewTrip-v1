@@ -4,6 +4,8 @@ import {
   CURRENCIES,
   Currency,
   AbandonTripInput,
+  DriveTickInput,
+  DriveTickResult,
   GameDataStore,
   Landmark,
   PlayerProfile,
@@ -17,14 +19,29 @@ import {
   WalletMutationInput,
   WalletTransaction,
 } from './game-data-store';
+import { isOnlineDriveModeUnlocked, simulateOnlineDriveTick } from '../modules/simulation/online-drive-tick';
 
 type InternalPlayer = PlayerProfile;
+type InternalAnalyticsEvent = {
+  playerId: string;
+  eventName: string;
+  sourceType: string;
+  sourceId: string;
+  eventPayload: Record<string, unknown>;
+  occurredAt: string;
+};
 
 const DEFAULT_VEHICLE_DEF = {
   vehicleDefId: '00000000-0000-4000-8000-000000000101',
   vehicleKey: 'van_common_001',
   displayName: 'Blue Travel Van',
+  baseSpeedKmph: 72,
   fuelCapacity: 45,
+  fuelConsumptionPerKm: 0.075,
+  durabilityLossPerKm: 0.018,
+  cleanlinessLossPerKm: 0.035,
+  offlineEfficiency: 0.6,
+  weatherResistance: 0.15,
   defaultSkinId: 'skin_van_blue_default',
 };
 
@@ -131,6 +148,8 @@ export class InMemoryGameDataStore implements GameDataStore {
   private readonly tripsByPlayer = new Map<string, Trip[]>();
   private readonly tripByPlayerAndIdempotencyKey = new Map<string, Trip>();
   private readonly abandonedTripByPlayerAndIdempotencyKey = new Map<string, Trip>();
+  private readonly driveTickResultByPlayerAndIdempotencyKey = new Map<string, DriveTickResult>();
+  private readonly analyticsEvents: InternalAnalyticsEvent[] = [];
 
   async getOrCreatePlayerState(identity: AuthIdentity): Promise<PlayerState> {
     const profile = await this.getOrCreatePlayerProfile(identity);
@@ -293,6 +312,149 @@ export class InMemoryGameDataStore implements GameDataStore {
     return this.tripWithRoute(trip);
   }
 
+  async driveTick(identity: AuthIdentity, input: DriveTickInput): Promise<DriveTickResult> {
+    const state = await this.getOrCreatePlayerState(identity);
+    const playerId = state.profile.playerId;
+    const idempotencyKey = `${playerId}:${input.idempotencyKey}`;
+    const existingForKey = this.driveTickResultByPlayerAndIdempotencyKey.get(idempotencyKey);
+    if (existingForKey) {
+      return this.cloneDriveTickResult(existingForKey);
+    }
+
+    const trip = this.tripsByPlayer
+      .get(playerId)
+      ?.find((candidate) => candidate.tripId === input.tripId);
+    if (!trip) {
+      throw new Error('TRIP_NOT_FOUND');
+    }
+    if (trip.status !== 'ACTIVE') {
+      throw new Error('TRIP_NOT_ACTIVE');
+    }
+    if (!isOnlineDriveModeUnlocked(state.profile.tutorialState, input.mode)) {
+      throw new Error('MODE_LOCKED');
+    }
+
+    const vehicle = this.vehiclesByPlayer
+      .get(playerId)
+      ?.find((candidate) => candidate.playerVehicleId === trip.playerVehicleId);
+    if (!vehicle) {
+      throw new Error('VEHICLE_NOT_FOUND');
+    }
+
+    const baseRoute = ROUTES.find((candidate) => candidate.routeId === trip.routeId);
+    if (!baseRoute) {
+      throw new Error('ROUTE_NOT_FOUND');
+    }
+    const route = this.routeWithDetails(baseRoute);
+    const now = new Date();
+    const simulation = simulateOnlineDriveTick({
+      mode: input.mode,
+      now,
+      lastSimulatedAt: new Date(trip.lastSimulatedAt),
+      currentDistanceKm: trip.currentDistanceKm,
+      elapsedRealSeconds: trip.elapsedRealSeconds,
+      previousOnlineTokenMeterKm: trip.onlineTokenMeterKm,
+      routeTotalDistanceKm: route.totalDistanceKm,
+      routeRewardMultiplier: route.rewardMultiplier,
+      vehicle,
+      segments: route.segments ?? [],
+      landmarks: (route.landmarks ?? []).map((landmark) => ({
+        landmarkId: landmark.landmarkId,
+        distanceKm: landmark.distanceKm,
+        requiredStop: landmark.requiredStop,
+      })),
+    });
+
+    trip.currentDistanceKm = simulation.finalDistanceKm;
+    trip.elapsedRealSeconds = simulation.updatedElapsedRealSeconds;
+    trip.onlineTokenMeterKm = simulation.updatedOnlineTokenMeterKm;
+    trip.lastSimulatedAt = now.toISOString();
+    trip.status = simulation.updatedTripStatus;
+    trip.forcedStopReason = simulation.forcedStopReason;
+
+    vehicle.currentFuel = simulation.updatedFuel;
+    vehicle.currentCleanliness = simulation.updatedCleanliness;
+    vehicle.currentDurability = simulation.updatedDurability;
+
+    const walletTransactions: WalletTransaction[] = [];
+    if (simulation.rewards.roadCoins > 0) {
+      walletTransactions.push(
+        await this.grantWallet({
+          playerId,
+          currency: 'ROAD_COINS',
+          amount: simulation.rewards.roadCoins,
+          reason: 'ONLINE_DRIVE_REWARD',
+          sourceType: 'TRIP_DRIVE_TICK',
+          sourceId: trip.tripId,
+          idempotencyKey: `${input.idempotencyKey}:road_coins`,
+        }),
+      );
+    }
+    if (simulation.rewards.travelTokens > 0) {
+      walletTransactions.push(
+        await this.grantWallet({
+          playerId,
+          currency: 'TRAVEL_TOKENS',
+          amount: simulation.rewards.travelTokens,
+          reason: 'ONLINE_DRIVE_REWARD',
+          sourceType: 'TRIP_DRIVE_TICK',
+          sourceId: trip.tripId,
+          idempotencyKey: `${input.idempotencyKey}:travel_tokens`,
+        }),
+      );
+    }
+
+    const result: DriveTickResult = {
+      trip: this.tripWithRoute(trip),
+      vehicle: { ...vehicle },
+      durationSeconds: simulation.durationSeconds,
+      rawDistanceGainKm: simulation.rawDistanceGainKm,
+      distanceGainKm: simulation.distanceGainKm,
+      finalDistanceKm: simulation.finalDistanceKm,
+      forcedStopReason: simulation.forcedStopReason,
+      ...(simulation.landmarkId ? { landmarkId: simulation.landmarkId } : {}),
+      fuelUsed: simulation.fuelUsed,
+      cleanlinessLoss: simulation.cleanlinessLoss,
+      durabilityLoss: simulation.durabilityLoss,
+      rewards: simulation.rewards,
+      walletBalances: await this.getWalletBalances(playerId),
+      walletTransactions,
+    };
+
+    this.analyticsEvents.push({
+      playerId,
+      eventName: 'drive_tick',
+      sourceType: 'TRIP',
+      sourceId: trip.tripId,
+      eventPayload: {
+        mode: input.mode,
+        client_tick_seq: input.clientTickSeq,
+        duration_seconds: simulation.durationSeconds,
+        distance_gain_km: simulation.distanceGainKm,
+        forced_stop_reason: simulation.forcedStopReason,
+        road_coins: simulation.rewards.roadCoins,
+        travel_tokens: simulation.rewards.travelTokens,
+      },
+      occurredAt: now.toISOString(),
+    });
+    if (simulation.forcedStopReason === 'LANDMARK_REQUIRED') {
+      this.analyticsEvents.push({
+        playerId,
+        eventName: 'stopped_at_landmark',
+        sourceType: 'TRIP',
+        sourceId: trip.tripId,
+        eventPayload: {
+          landmark_id: simulation.landmarkId,
+          distance_km: simulation.finalDistanceKm,
+        },
+        occurredAt: now.toISOString(),
+      });
+    }
+
+    this.driveTickResultByPlayerAndIdempotencyKey.set(idempotencyKey, this.cloneDriveTickResult(result));
+    return result;
+  }
+
   private mutateWallet(input: WalletMutationInput, signedAmount: number): WalletTransaction {
     this.ensurePlayerDefaults(input.playerId);
     const txKey = `${input.playerId}:${input.idempotencyKey}`;
@@ -346,6 +508,13 @@ export class InMemoryGameDataStore implements GameDataStore {
         vehicleDefId: DEFAULT_VEHICLE_DEF.vehicleDefId,
         vehicleKey: DEFAULT_VEHICLE_DEF.vehicleKey,
         displayName: DEFAULT_VEHICLE_DEF.displayName,
+        baseSpeedKmph: DEFAULT_VEHICLE_DEF.baseSpeedKmph,
+        fuelCapacity: DEFAULT_VEHICLE_DEF.fuelCapacity,
+        fuelConsumptionPerKm: DEFAULT_VEHICLE_DEF.fuelConsumptionPerKm,
+        durabilityLossPerKm: DEFAULT_VEHICLE_DEF.durabilityLossPerKm,
+        cleanlinessLossPerKm: DEFAULT_VEHICLE_DEF.cleanlinessLossPerKm,
+        offlineEfficiency: DEFAULT_VEHICLE_DEF.offlineEfficiency,
+        weatherResistance: DEFAULT_VEHICLE_DEF.weatherResistance,
         currentFuel: DEFAULT_VEHICLE_DEF.fuelCapacity,
         currentDurability: 100,
         currentCleanliness: 100,
@@ -435,5 +604,9 @@ export class InMemoryGameDataStore implements GameDataStore {
 
   private identityKey(identity: AuthIdentity): string {
     return `${identity.authProvider}:${identity.externalId}`;
+  }
+
+  private cloneDriveTickResult(result: DriveTickResult): DriveTickResult {
+    return JSON.parse(JSON.stringify(result)) as DriveTickResult;
   }
 }

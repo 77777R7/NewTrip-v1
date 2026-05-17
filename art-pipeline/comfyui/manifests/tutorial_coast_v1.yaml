@@ -112,3 +112,28 @@ assets:
       - rear-view car matches camera
       - readable at mobile size
       - does not use licensed brand marks
+
+draft_layer_test_outputs:
+  status: art_direction_test_passed_not_production_done
+  review_note: assets/art/source/tutorial_coast_v1/review/2026-05-16-layer-test-review.md
+  outputs:
+    - asset_id: tutorial_coast_sky_layer_001
+      layer_type: sky_layer
+      status: draft_review
+      path: assets/art/source/tutorial_coast_v1/drafts/layers/tutorial_coast_sky_layer_001_draft.png
+    - asset_id: tutorial_coast_far_ocean_001
+      layer_type: far_ocean
+      status: draft_review
+      path: assets/art/source/tutorial_coast_v1/drafts/layers/tutorial_coast_far_ocean_001_draft.png
+    - asset_id: tutorial_coast_lighthouse_silhouettes_001
+      layer_type: landmark_silhouette
+      status: draft_review
+      path: assets/art/source/tutorial_coast_v1/drafts/landmarks/tutorial_coast_lighthouse_silhouettes_001_draft.png
+    - asset_id: tutorial_coast_roadside_grass_001
+      layer_type: roadside_prop
+      status: draft_review
+      path: assets/art/source/tutorial_coast_v1/drafts/props/tutorial_coast_roadside_grass_001_draft.png
+    - asset_id: tutorial_coast_road_foreground_001
+      layer_type: road_foreground
+      status: draft_review
+      path: assets/art/source/tutorial_coast_v1/drafts/layers/tutorial_coast_road_foreground_001_draft.png

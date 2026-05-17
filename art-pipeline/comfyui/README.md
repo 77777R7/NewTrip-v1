@@ -2,6 +2,10 @@
 
 This folder contains the repeatable batch generation setup for NewTrip route art.
 
+Mandatory contract: `../../docs/art/scene-pack-contract-v1.md`.
+
+Do not approve a generated image unless it has a scene-pack metadata entry, usage class, layer type, time preset, and contract-compliant filename.
+
 ## First Test Batch
 
 Use:
@@ -9,6 +13,7 @@ Use:
 - Manifest: `manifests/tutorial_coast_v1.yaml`
 - Prompts: `prompts/tutorial_coast_layer_prompts.yaml`
 - Workflow template: `workflows/newtrip_pseudo3d_base_workflow.template.json`
+- New scene-pack metadata template: `manifests/scene-pack-template.yaml`
 - Style reference: `../../assets/art/reference/newtrip_style_reference_big_sur_pseudo3d_v1.png`
 
 ## How To Run Manually In ComfyUI
@@ -32,15 +37,15 @@ If the road base is wrong, every later layer will fight the gameplay camera. Do 
 ## Naming Contract
 
 ```text
-{route_id}_{layer_type}_{index}_{status}.png
+{region}_{time}_{usage}_{layer_or_asset}_{variant}_{status}.png
 ```
 
 Examples:
 
 ```text
-tutorial_coast_road_base_001_draft.png
-tutorial_coast_road_base_001_approved.png
-tutorial_coast_guardrail_right_001_approved.png
+bigsur_sunset_driving_road_projection_v01_draft.png
+bigsur_sunset_driving_road_projection_v01_approved.png
+santacruz_sunset_routecard_boardwalk_thumb_v01_approved.png
 ```
 
 ## Engine Handoff

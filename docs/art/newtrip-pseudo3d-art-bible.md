@@ -2,6 +2,8 @@
 
 This document locks the V1 art direction for AI-assisted batch asset generation. It is a production constraint file, not a marketing moodboard.
 
+For production scene packs, this art bible is subordinate to `docs/art/scene-pack-contract-v1.md`. Use the art bible for visual taste and the scene-pack contract for layer structure, usage classification, naming, metadata, and approval rules.
+
 ## Art Direction
 
 NewTrip uses a warm, premium 16-bit pixel-art road-trip style with a pseudo-3D forward-driving camera.
@@ -55,18 +57,15 @@ Open Highway:
 
 ## Layer Strategy
 
-Do not generate every screen as one flat image. Generate an approved master scene, then create layered assets that Unity can assemble:
+Do not generate every screen as one flat image. Generate an approved master scene, then create layered assets that Unity can assemble. The mandatory driving layer structure is defined in `docs/art/scene-pack-contract-v1.md`:
 
-- `sky_far`
-- `far_landscape`
-- `mid_landscape`
-- `road_base`
-- `roadside_left`
-- `roadside_right`
-- `landmark_billboard`
-- `vehicle_sprite`
-- `hud_mockup`
-- `photo_card`
+- `sky_horizon`
+- `far_background_silhouette`
+- `midground_landmark_mass`
+- `road_projection`
+- `roadside_terrain_vegetation`
+- `landmark_props_signs`
+- `weather_particles_overlay`
 
 The gameplay scene should be built from layers so the client can animate distance, forced stops, and landmark approach without regenerating art.
 

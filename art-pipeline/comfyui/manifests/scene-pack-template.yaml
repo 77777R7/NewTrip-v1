@@ -1,0 +1,100 @@
+scene_pack_id: replace_region_time_v1
+scene_pack_type: core_biome_pack
+region: california_hwy_1
+biome: replace_biome
+route_segment: replace_route_segment
+time_preset: golden_hour_sunset_a
+camera_perspective: pseudo_3d_forward_road
+contract: docs/art/scene-pack-contract-v1.md
+style_bible: docs/art/newtrip-pseudo3d-art-bible.md
+status: draft
+
+primary_usage:
+  - driving
+compatible_usage:
+  - route_card
+  - travel_report
+
+compatible_weather:
+  - clear
+  - light_cloud
+  - light_fog
+
+generation:
+  tool: comfyui
+  workflow: art-pipeline/comfyui/workflows/newtrip_pseudo3d_base_workflow.template.json
+  style_reference: assets/art/reference/newtrip_style_reference_big_sur_pseudo3d_v1.png
+  prompt_version: scene_pack_contract_v1
+  model: replace_with_actual_model_name
+  seed_policy: fixed_per_asset
+  sampler: keep_fixed_per_batch
+  resolution: "1024x1792"
+
+lighting:
+  time_preset_id: golden_hour_sunset_a
+  sun_position: low_right_horizon
+  light_direction: right_to_left_warm_rim_light
+  shadow_direction: toward_lower_left_or_left_side
+  sky_gradient: violet_top_to_orange_middle_to_pale_yellow_horizon
+  cloud_style: sparse_horizontal_pixel_cloud_clusters
+  contrast: readable_not_harsh
+
+layers:
+  sky_horizon:
+    asset_id: replace_region_time_driving_sky_horizon_v01
+    status: draft
+    seed: 10001
+    path: assets/art/scene_packs/california_hwy_1/replace_scene_pack/driving/layers/replace_region_time_driving_sky_horizon_v01_draft.png
+  far_background_silhouette:
+    asset_id: replace_region_time_driving_far_background_v01
+    status: draft
+    seed: 10002
+    path: assets/art/scene_packs/california_hwy_1/replace_scene_pack/driving/layers/replace_region_time_driving_far_background_v01_draft.png
+  midground_landmark_mass:
+    asset_id: replace_region_time_driving_midground_mass_v01
+    status: draft
+    seed: 10003
+    path: assets/art/scene_packs/california_hwy_1/replace_scene_pack/driving/layers/replace_region_time_driving_midground_mass_v01_draft.png
+  road_projection:
+    asset_id: replace_region_time_driving_road_projection_v01
+    status: draft
+    seed: 10004
+    path: assets/art/scene_packs/california_hwy_1/replace_scene_pack/driving/layers/replace_region_time_driving_road_projection_v01_draft.png
+  roadside_terrain_vegetation:
+    asset_id: replace_region_time_driving_roadside_terrain_v01
+    status: draft
+    seed: 10005
+    path: assets/art/scene_packs/california_hwy_1/replace_scene_pack/driving/layers/replace_region_time_driving_roadside_terrain_v01_draft.png
+  landmark_props_signs:
+    asset_id: replace_region_time_driving_landmark_props_v01
+    status: draft
+    seed: 10006
+    path: assets/art/scene_packs/california_hwy_1/replace_scene_pack/driving/layers/replace_region_time_driving_landmark_props_v01_draft.png
+  weather_particles_overlay:
+    asset_id: replace_region_time_driving_overlay_v01
+    status: draft
+    seed: 10007
+    path: assets/art/scene_packs/california_hwy_1/replace_scene_pack/driving/layers/replace_region_time_driving_overlay_v01_draft.png
+
+scenic_assets:
+  photo_stop:
+    asset_id: replace_region_time_scenic_photo_stop_v01
+    status: draft
+    seed: 11001
+    path: assets/art/scene_packs/california_hwy_1/replace_scene_pack/scenic/photo_stops/replace_region_time_scenic_photo_stop_v01_draft.png
+  route_card:
+    asset_id: replace_region_time_routecard_thumb_v01
+    status: draft
+    seed: 11002
+    path: assets/art/scene_packs/california_hwy_1/replace_scene_pack/scenic/route_cards/replace_region_time_routecard_thumb_v01_draft.png
+
+definition_of_done:
+  - style_matches_newtrip_pixel_art
+  - uses_declared_time_preset
+  - declares_usage_class
+  - declares_layer_or_asset_type
+  - follows_naming_convention
+  - metadata_complete
+  - no_hud_car_or_text_unless_requested
+  - driving_layers_composite_cleanly
+  - approved_assets_importable_to_unity

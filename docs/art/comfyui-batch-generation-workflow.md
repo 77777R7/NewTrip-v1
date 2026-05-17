@@ -2,6 +2,8 @@
 
 This workflow turns the approved NewTrip style reference into repeatable route asset packs.
 
+All ComfyUI batches must follow `docs/art/scene-pack-contract-v1.md`. Do not generate or approve route art from a freeform prompt without a scene-pack type, usage class, layer type, time preset, naming pattern, and metadata entry.
+
 ## What ComfyUI Owns
 
 ComfyUI is the repeatable asset factory for:
@@ -51,6 +53,7 @@ art-pipeline/comfyui/
   workflows/
     newtrip_pseudo3d_base_workflow.template.json
   manifests/
+    scene-pack-template.yaml
     tutorial_coast_v1.yaml
   prompts/
     tutorial_coast_layer_prompts.yaml
@@ -67,13 +70,16 @@ assets/art/source/
 
 ## Production Flow
 
-1. Generate or select one master reference for the route.
-2. Create a perspective guide: road edges, center lines, horizon, HUD-safe top region, car-safe lower region.
-3. Generate `road_base` first. Reject it if the road curves or the vanishing point drifts.
-4. Generate far and mid landscape layers using the same style reference and route context.
-5. Generate props and landmarks separately on transparent or chroma-key backgrounds.
-6. Import approved assets into Unity and test on iPhone portrait safe areas.
-7. Only then batch variants for time-of-day, weather, and later route packs.
+1. Copy `art-pipeline/comfyui/manifests/scene-pack-template.yaml` for the new scene pack.
+2. Declare scene-pack type, usage class, layer type, route segment, and time preset.
+3. Generate or select one master reference for the route.
+4. Create a perspective guide: road edges, center lines, horizon, HUD-safe top region, car-safe lower region.
+5. Generate `road_projection` first. Reject it if the road curves or the vanishing point drifts.
+6. Generate far and mid landscape layers using the same style reference and route context.
+7. Generate props and landmarks separately on transparent or chroma-key backgrounds.
+8. Save all draft outputs with contract-compliant names and metadata.
+9. Import only approved assets into Unity and test on iPhone portrait safe areas.
+10. Only then batch variants for time-of-day, weather, and later route packs.
 
 ## Quality Gate
 

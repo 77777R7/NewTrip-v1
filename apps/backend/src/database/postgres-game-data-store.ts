@@ -6,11 +6,14 @@ import {
   CURRENCIES,
   Currency,
   AbandonTripInput,
+  CompleteLandmarkInput,
+  CompleteLandmarkResult,
   DriveTickInput,
   DriveTickResult,
   GameDataStore,
   Landmark,
   PlayerProfile,
+  PlayerPhoto,
   PlayerState,
   PlayerVehicle,
   RouteDefinition,
@@ -21,7 +24,9 @@ import {
   WalletMutationInput,
   WalletTransaction,
 } from './game-data-store';
+import { calculatePhotoQualityScore } from '../modules/landmark/photo-quality';
 import { isOnlineDriveModeUnlocked, simulateOnlineDriveTick } from '../modules/simulation/online-drive-tick';
+import { nextTutorialStateAfterDriveTick, nextTutorialStateAfterPhoto } from '../modules/tutorial/tutorial-state';
 
 @Injectable()
 export class PostgresGameDataStore implements GameDataStore, OnModuleDestroy {
@@ -493,6 +498,13 @@ export class PostgresGameDataStore implements GameDataStore, OnModuleDestroy {
           requiredStop: landmark.requiredStop,
         })),
       });
+      const nextTutorialState = nextTutorialStateAfterDriveTick({
+        currentState: profile.tutorialState,
+        mode: input.mode,
+        distanceGainKm: simulation.distanceGainKm,
+        finalDistanceKm: simulation.finalDistanceKm,
+        forcedStopReason: simulation.forcedStopReason,
+      });
 
       const updatedTripResult = await client.query(
         `
@@ -518,6 +530,17 @@ export class PostgresGameDataStore implements GameDataStore, OnModuleDestroy {
           input.clientTickSeq,
         ],
       );
+
+      if (nextTutorialState !== profile.tutorialState) {
+        await client.query(
+          `
+            update public.players
+            set tutorial_state = $2, updated_at = now()
+            where player_id = $1
+          `,
+          [profile.playerId, nextTutorialState],
+        );
+      }
 
       await client.query(
         `
@@ -652,6 +675,221 @@ export class PostgresGameDataStore implements GameDataStore, OnModuleDestroy {
           JSON.stringify(result),
         ],
       );
+
+      await client.query('commit');
+      return result;
+    } catch (error) {
+      await client.query('rollback');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async completeLandmark(identity: AuthIdentity, input: CompleteLandmarkInput): Promise<CompleteLandmarkResult> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('begin');
+      const profile = await this.getOrCreatePlayerProfileInTransaction(client, identity);
+      await this.ensurePlayerDefaultsInTransaction(client, profile.playerId);
+
+      const existingPhoto = await client.query(
+        `
+          select *
+          from public.player_photos
+          where player_id = $1 and complete_landmark_idempotency_key = $2
+          limit 1
+          for update
+        `,
+        [profile.playerId, input.idempotencyKey],
+      );
+      if (existingPhoto.rowCount) {
+        const photo = this.toPlayerPhoto(existingPhoto.rows[0]);
+        const tripResult = await client.query('select * from public.player_trips where trip_id = $1', [photo.tripId]);
+        const rewardTxResult = photo.rewardTxId
+          ? await client.query('select * from public.wallet_transactions where transaction_id = $1', [photo.rewardTxId])
+          : { rows: [] };
+        const result: CompleteLandmarkResult = {
+          trip: await this.tripWithRouteInTransaction(client, this.toTrip(tripResult.rows[0]), profile.playerId),
+          profile,
+          photo,
+          walletBalances: await this.getWalletBalancesInTransaction(client, profile.playerId),
+          walletTransactions: rewardTxResult.rows.map((row) => this.toWalletTransaction(row)),
+        };
+
+        await client.query('commit');
+        return result;
+      }
+
+      const tripResult = await client.query(
+        `
+          select *
+          from public.player_trips
+          where player_id = $1 and trip_id = $2
+          for update
+        `,
+        [profile.playerId, input.tripId],
+      );
+      if (!tripResult.rowCount) {
+        throw new Error('TRIP_NOT_FOUND');
+      }
+
+      const trip = this.toTrip(tripResult.rows[0]);
+      if (trip.status !== 'FORCED_STOP' || trip.forcedStopReason !== 'LANDMARK_REQUIRED') {
+        throw new Error('LANDMARK_STOP_REQUIRED');
+      }
+
+      const landmarkResult = await client.query(
+        `
+          select *
+          from public.landmarks
+          where route_id = $1 and landmark_id = $2
+          limit 1
+        `,
+        [trip.routeId, input.landmarkId],
+      );
+      if (!landmarkResult.rowCount) {
+        throw new Error('LANDMARK_NOT_FOUND');
+      }
+
+      const landmark = this.toLandmark(landmarkResult.rows[0]);
+      if (trip.currentDistanceKm < landmark.distanceKm) {
+        throw new Error('LANDMARK_NOT_FOUND');
+      }
+
+      const existingFirstPhoto = await client.query(
+        `
+          select photo_id
+          from public.player_photos
+          where player_id = $1 and landmark_id = $2 and is_first_photo = true
+          limit 1
+          for update
+        `,
+        [profile.playerId, landmark.landmarkId],
+      );
+      if (existingFirstPhoto.rowCount) {
+        throw new Error('LANDMARK_ALREADY_COMPLETED');
+      }
+
+      const vehicleResult = await client.query(
+        `
+          select
+            pv.*,
+            vd.vehicle_key,
+            vd.display_name,
+            vd.base_speed_kmph,
+            vd.fuel_capacity,
+            vd.fuel_consumption_per_km,
+            vd.durability_loss_per_km,
+            vd.cleanliness_loss_per_km,
+            vd.offline_efficiency,
+            vd.weather_resistance
+          from public.player_vehicles pv
+          join public.vehicle_definitions vd on vd.vehicle_def_id = pv.vehicle_def_id
+          where pv.player_id = $1 and pv.player_vehicle_id = $2
+          for update
+        `,
+        [profile.playerId, trip.playerVehicleId],
+      );
+      if (!vehicleResult.rowCount) {
+        throw new Error('VEHICLE_NOT_FOUND');
+      }
+      const vehicle = this.toPlayerVehicle(vehicleResult.rows[0]);
+
+      const rewardTx = await this.mutateWalletInTransaction(client, {
+        playerId: profile.playerId,
+        currency: 'ROAD_COINS',
+        amount: landmark.basePhotoCoins,
+        reason: 'PHOTO_FIRST_REWARD',
+        sourceType: 'LANDMARK_PHOTO',
+        sourceId: landmark.landmarkId,
+        idempotencyKey: `${input.idempotencyKey}:first_photo_reward`,
+      }, landmark.basePhotoCoins);
+
+      const nextTutorialState = nextTutorialStateAfterPhoto(profile.tutorialState);
+      if (nextTutorialState !== profile.tutorialState) {
+        await client.query(
+          `
+            update public.players
+            set tutorial_state = $2, updated_at = now()
+            where player_id = $1
+          `,
+          [profile.playerId, nextTutorialState],
+        );
+      }
+
+      const updatedTripResult = await client.query(
+        `
+          update public.player_trips
+          set status = 'ACTIVE',
+              forced_stop_reason = null,
+              last_simulated_at = now()
+          where trip_id = $1
+          returning *
+        `,
+        [trip.tripId],
+      );
+
+      const insertedPhoto = await client.query(
+        `
+          insert into public.player_photos (
+            player_id,
+            trip_id,
+            landmark_id,
+            photo_card_key,
+            quality_score,
+            weather,
+            day_phase,
+            cleanliness_at_shot,
+            is_first_photo,
+            reward_tx_id,
+            complete_landmark_idempotency_key,
+            metadata
+          )
+          values ($1, $2, $3, $4, $5, 'sunny', 'day', $6, true, $7, $8, '{}'::jsonb)
+          returning *
+        `,
+        [
+          profile.playerId,
+          trip.tripId,
+          landmark.landmarkId,
+          landmark.photoCardKey,
+          calculatePhotoQualityScore({ vehicle, landmark }),
+          vehicle.currentCleanliness,
+          rewardTx.transactionId,
+          input.idempotencyKey,
+        ],
+      );
+      const photo = this.toPlayerPhoto(insertedPhoto.rows[0]);
+
+      await this.insertAnalyticsEventInTransaction(client, {
+        playerId: profile.playerId,
+        eventName: 'photo_taken',
+        sourceType: 'LANDMARK',
+        sourceId: landmark.landmarkId,
+        payload: {
+          trip_id: trip.tripId,
+          photo_id: photo.photoId,
+          quality_score: photo.qualityScore,
+          is_first_photo: true,
+        },
+      });
+
+      const updatedProfile = {
+        ...profile,
+        tutorialState: nextTutorialState,
+      };
+      const updatedRoute = await this.getRouteForTripInTransaction(client, profile.playerId, trip.routeId);
+      const result: CompleteLandmarkResult = {
+        trip: {
+          ...this.toTrip(updatedTripResult.rows[0]),
+          route: updatedRoute ?? undefined,
+        },
+        profile: updatedProfile,
+        photo,
+        walletBalances: await this.getWalletBalancesInTransaction(client, profile.playerId),
+        walletTransactions: [rewardTx],
+      };
 
       await client.query('commit');
       return result;
@@ -975,6 +1213,64 @@ export class PostgresGameDataStore implements GameDataStore, OnModuleDestroy {
     };
   }
 
+  private async tripWithRouteInTransaction(client: PoolClient, trip: Trip, playerId: string): Promise<Trip> {
+    const route = await this.getRouteForTripInTransaction(client, playerId, trip.routeId);
+    return {
+      ...trip,
+      route: route ?? undefined,
+    };
+  }
+
+  private async getRouteForTripInTransaction(
+    client: PoolClient,
+    playerId: string,
+    routeId: string,
+  ): Promise<RouteDefinition | null> {
+    const route = await client.query(
+      `
+        select
+          rd.*,
+          (rd.route_type = 'Tutorial' or pur.player_id is not null) as is_unlocked
+        from public.route_definitions rd
+        left join public.player_unlocked_routes pur
+          on pur.route_id = rd.route_id and pur.player_id = $1
+        where rd.route_id = $2
+        limit 1
+      `,
+      [playerId, routeId],
+    );
+
+    if (!route.rowCount) {
+      return null;
+    }
+
+    const routeDefinition = this.toRouteDefinition(route.rows[0]);
+    const segmentsResult = await client.query(
+      `
+        select *
+        from public.route_segments
+        where route_id = $1
+        order by segment_index asc
+      `,
+      [routeId],
+    );
+    const landmarksResult = await client.query(
+      `
+        select *
+        from public.landmarks
+        where route_id = $1
+        order by distance_km asc
+      `,
+      [routeId],
+    );
+
+    return {
+      ...routeDefinition,
+      segments: segmentsResult.rows.map((row) => this.toRouteSegment(row)),
+      landmarks: landmarksResult.rows.map((row) => this.toLandmark(row)),
+    };
+  }
+
   private async getRouteForPlayer(playerId: string, routeId: string): Promise<RouteDefinition | null> {
     const route = await this.pool.query(
       `
@@ -1103,6 +1399,23 @@ export class PostgresGameDataStore implements GameDataStore, OnModuleDestroy {
       startedAt: row.started_at.toISOString(),
       completedAt: row.completed_at?.toISOString() ?? null,
       forcedStopReason: row.forced_stop_reason,
+    };
+  }
+
+  private toPlayerPhoto(row: QueryResultRow): PlayerPhoto {
+    return {
+      photoId: row.photo_id,
+      playerId: row.player_id,
+      tripId: row.trip_id,
+      landmarkId: row.landmark_id,
+      photoCardKey: row.photo_card_key,
+      qualityScore: Number(row.quality_score),
+      weather: row.weather,
+      dayPhase: row.day_phase,
+      cleanlinessAtShot: Number(row.cleanliness_at_shot),
+      isFirstPhoto: Boolean(row.is_first_photo),
+      rewardTxId: row.reward_tx_id,
+      takenAt: row.taken_at.toISOString(),
     };
   }
 

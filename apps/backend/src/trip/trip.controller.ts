@@ -13,6 +13,16 @@ type DriveTickBody = {
   idempotency_key?: string;
 };
 
+type CompleteLandmarkBody = {
+  tripId?: string;
+  trip_id?: string;
+  landmarkId?: string;
+  landmark_id?: string;
+  action?: 'TAKE_PHOTO';
+  idempotencyKey?: string;
+  idempotency_key?: string;
+};
+
 @Controller('trip')
 export class TripController {
   constructor(private readonly tripService: TripService) {}
@@ -28,6 +38,16 @@ export class TripController {
       tripId: body.tripId ?? body.trip_id ?? '',
       mode: body.mode ?? 'HOLD_TO_DRIVE',
       clientTickSeq: body.clientTickSeq ?? body.client_tick_seq ?? 0,
+      idempotencyKey: body.idempotencyKey ?? body.idempotency_key ?? '',
+    });
+  }
+
+  @Post('complete-landmark')
+  completeLandmark(@Req() request: Request, @Body() body: CompleteLandmarkBody) {
+    return this.tripService.completeLandmark(getRequestAuthIdentity(request), {
+      tripId: body.tripId ?? body.trip_id ?? '',
+      landmarkId: body.landmarkId ?? body.landmark_id ?? '',
+      action: body.action ?? 'TAKE_PHOTO',
       idempotencyKey: body.idempotencyKey ?? body.idempotency_key ?? '',
     });
   }

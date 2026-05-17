@@ -305,34 +305,34 @@ Goal: complete the first half of the first trip: Hold to Drive, Auto Driving unl
 
 Tutorial state machine:
 
-- [ ] `NOT_STARTED -> ROUTE_SELECTED`.
-- [ ] `ROUTE_SELECTED -> HOLD_TO_DRIVE_REQUIRED`.
-- [ ] `HOLD_TO_DRIVE_REQUIRED -> AUTO_DRIVING_UNLOCKED`.
-- [ ] `AUTO_DRIVING_UNLOCKED -> FIRST_LANDMARK_REACHED`.
-- [ ] `FIRST_LANDMARK_REACHED -> PHOTO_TAKEN`.
+- [x] `NOT_STARTED -> ROUTE_SELECTED`.
+- [x] `ROUTE_SELECTED -> HOLD_TO_DRIVE_REQUIRED`.
+- [x] `HOLD_TO_DRIVE_REQUIRED -> AUTO_DRIVING_UNLOCKED`.
+- [x] `AUTO_DRIVING_UNLOCKED -> FIRST_LANDMARK_REACHED`.
+- [x] `FIRST_LANDMARK_REACHED -> PHOTO_TAKEN`.
 
 Landmark/photo service:
 
-- [ ] Implement `POST /trip/complete-landmark`.
-- [ ] Require `trip.forced_stop_reason = LANDMARK_REQUIRED`.
-- [ ] Require landmark belongs to current route.
-- [ ] Create `player_photos`.
-- [ ] Calculate `photo_quality_score`.
-- [ ] Grant first-photo reward.
-- [ ] Set trip back to `ACTIVE`.
+- [x] Implement `POST /trip/complete-landmark`.
+- [x] Require `trip.forced_stop_reason = LANDMARK_REQUIRED`.
+- [x] Require landmark belongs to current route.
+- [x] Create `player_photos`.
+- [x] Calculate `photo_quality_score`.
+- [x] Grant first-photo reward.
+- [x] Set trip back to `ACTIVE`.
 
 Acceptance:
 
-- [ ] Player can unlock Auto Driving after Hold to Drive.
-- [ ] First landmark stops the trip.
-- [ ] `complete-landmark` generates photo.
-- [ ] First photo reward writes wallet transaction.
-- [ ] Trip continues after photo.
-- [ ] Same landmark cannot grant first reward twice.
+- [x] Player can unlock Auto Driving after Hold to Drive.
+- [x] First landmark stops the trip.
+- [x] `complete-landmark` generates photo.
+- [x] First photo reward writes wallet transaction.
+- [x] Trip continues after photo.
+- [x] Same landmark cannot grant first reward twice.
 
 Milestone demo:
 
-- [ ] Create player -> start tutorial -> drive -> stop at landmark -> take first photo.
+- [x] Create player -> start tutorial -> drive -> stop at landmark -> take first photo.
 
 ## Day 8: Offline Simulation And Travel Report
 
@@ -681,3 +681,4 @@ Trip Simulation Engine
 - 2026-05-16: Completed pre-Day-5 cleanup gate: expanded remaining inline config YAML, added parser-backed YAML validation, added `config:validate-yaml`, and covered config validation with unit tests.
 - 2026-05-16: Completed Day 5 Trip Simulation Engine pure functions with typed simulation inputs, default constants, distance/consumption/offline/forced-stop/reward formulas, and focused unit tests.
 - 2026-05-16: Completed Day 6 online drive tick: `/trip/drive-tick`, backend-authoritative distance/vehicle/wallet updates, tick idempotency, max-duration clamp, landmark forced stop, analytics event writes, and route-end/low-fuel tests.
+- 2026-05-17: Completed Day 7 tutorial landmark/photo slice: tutorial state machine through `PHOTO_TAKEN`, Auto Driving unlock guard, `POST /trip/complete-landmark`, `player_photos`, first-photo wallet reward, and idempotent retry coverage.

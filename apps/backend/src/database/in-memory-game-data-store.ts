@@ -4,11 +4,14 @@ import {
   CURRENCIES,
   Currency,
   AbandonTripInput,
+  CompleteLandmarkInput,
+  CompleteLandmarkResult,
   DriveTickInput,
   DriveTickResult,
   GameDataStore,
   Landmark,
   PlayerProfile,
+  PlayerPhoto,
   PlayerState,
   PlayerVehicle,
   RouteDefinition,
@@ -20,6 +23,8 @@ import {
   WalletTransaction,
 } from './game-data-store';
 import { isOnlineDriveModeUnlocked, simulateOnlineDriveTick } from '../modules/simulation/online-drive-tick';
+import { calculatePhotoQualityScore } from '../modules/landmark/photo-quality';
+import { nextTutorialStateAfterDriveTick, nextTutorialStateAfterPhoto } from '../modules/tutorial/tutorial-state';
 
 type InternalPlayer = PlayerProfile;
 type InternalAnalyticsEvent = {
@@ -149,6 +154,8 @@ export class InMemoryGameDataStore implements GameDataStore {
   private readonly tripByPlayerAndIdempotencyKey = new Map<string, Trip>();
   private readonly abandonedTripByPlayerAndIdempotencyKey = new Map<string, Trip>();
   private readonly driveTickResultByPlayerAndIdempotencyKey = new Map<string, DriveTickResult>();
+  private readonly completeLandmarkResultByPlayerAndIdempotencyKey = new Map<string, CompleteLandmarkResult>();
+  private readonly playerPhotos: PlayerPhoto[] = [];
   private readonly analyticsEvents: InternalAnalyticsEvent[] = [];
 
   async getOrCreatePlayerState(identity: AuthIdentity): Promise<PlayerState> {
@@ -284,7 +291,9 @@ export class InMemoryGameDataStore implements GameDataStore {
     this.tripsByPlayer.set(playerId, [...(this.tripsByPlayer.get(playerId) ?? []), trip]);
     this.tripByPlayerAndIdempotencyKey.set(`${playerId}:${input.idempotencyKey}`, trip);
     this.lockVehicle(playerId, playerVehicle.playerVehicleId, trip.tripId);
-    this.transitionTutorialState(playerId, 'ROUTE_SELECTED');
+    if (state.profile.tutorialState === 'NOT_STARTED') {
+      this.transitionTutorialState(playerId, 'ROUTE_SELECTED');
+    }
     return this.tripWithRoute(trip);
   }
 
@@ -371,6 +380,16 @@ export class InMemoryGameDataStore implements GameDataStore {
     trip.lastSimulatedAt = now.toISOString();
     trip.status = simulation.updatedTripStatus;
     trip.forcedStopReason = simulation.forcedStopReason;
+    this.transitionTutorialState(
+      playerId,
+      nextTutorialStateAfterDriveTick({
+        currentState: state.profile.tutorialState,
+        mode: input.mode,
+        distanceGainKm: simulation.distanceGainKm,
+        finalDistanceKm: simulation.finalDistanceKm,
+        forcedStopReason: simulation.forcedStopReason,
+      }),
+    );
 
     vehicle.currentFuel = simulation.updatedFuel;
     vehicle.currentCleanliness = simulation.updatedCleanliness;
@@ -452,6 +471,108 @@ export class InMemoryGameDataStore implements GameDataStore {
     }
 
     this.driveTickResultByPlayerAndIdempotencyKey.set(idempotencyKey, this.cloneDriveTickResult(result));
+    return result;
+  }
+
+  async completeLandmark(identity: AuthIdentity, input: CompleteLandmarkInput): Promise<CompleteLandmarkResult> {
+    const state = await this.getOrCreatePlayerState(identity);
+    const playerId = state.profile.playerId;
+    const idempotencyKey = `${playerId}:${input.idempotencyKey}`;
+    const existingForKey = this.completeLandmarkResultByPlayerAndIdempotencyKey.get(idempotencyKey);
+    if (existingForKey) {
+      return this.cloneCompleteLandmarkResult(existingForKey);
+    }
+
+    const trip = this.tripsByPlayer
+      .get(playerId)
+      ?.find((candidate) => candidate.tripId === input.tripId);
+    if (!trip) {
+      throw new Error('TRIP_NOT_FOUND');
+    }
+    if (trip.status !== 'FORCED_STOP' || trip.forcedStopReason !== 'LANDMARK_REQUIRED') {
+      throw new Error('LANDMARK_STOP_REQUIRED');
+    }
+
+    const route = ROUTES.find((candidate) => candidate.routeId === trip.routeId);
+    if (!route) {
+      throw new Error('ROUTE_NOT_FOUND');
+    }
+    const landmark = (ROUTE_LANDMARKS[route.routeId] ?? []).find(
+      (candidate) => candidate.landmarkId === input.landmarkId,
+    );
+    if (!landmark || trip.currentDistanceKm < landmark.distanceKm) {
+      throw new Error('LANDMARK_NOT_FOUND');
+    }
+
+    const existingFirstPhoto = this.playerPhotos.find(
+      (photo) => photo.playerId === playerId && photo.landmarkId === landmark.landmarkId && photo.isFirstPhoto,
+    );
+    if (existingFirstPhoto) {
+      throw new Error('LANDMARK_ALREADY_COMPLETED');
+    }
+
+    const vehicle = this.vehiclesByPlayer
+      .get(playerId)
+      ?.find((candidate) => candidate.playerVehicleId === trip.playerVehicleId);
+    if (!vehicle) {
+      throw new Error('VEHICLE_NOT_FOUND');
+    }
+
+    const rewardTx = await this.grantWallet({
+      playerId,
+      currency: 'ROAD_COINS',
+      amount: landmark.basePhotoCoins,
+      reason: 'PHOTO_FIRST_REWARD',
+      sourceType: 'LANDMARK_PHOTO',
+      sourceId: landmark.landmarkId,
+      idempotencyKey: `${input.idempotencyKey}:first_photo_reward`,
+    });
+    const now = new Date().toISOString();
+    const photo: PlayerPhoto = {
+      photoId: randomUUID(),
+      playerId,
+      tripId: trip.tripId,
+      landmarkId: landmark.landmarkId,
+      photoCardKey: landmark.photoCardKey,
+      qualityScore: calculatePhotoQualityScore({ vehicle, landmark }),
+      weather: 'sunny',
+      dayPhase: 'day',
+      cleanlinessAtShot: vehicle.currentCleanliness,
+      isFirstPhoto: true,
+      rewardTxId: rewardTx.transactionId,
+      takenAt: now,
+    };
+    this.playerPhotos.push(photo);
+
+    trip.status = 'ACTIVE';
+    trip.forcedStopReason = null;
+    trip.lastSimulatedAt = now;
+    this.transitionTutorialState(playerId, nextTutorialStateAfterPhoto(state.profile.tutorialState));
+
+    this.analyticsEvents.push({
+      playerId,
+      eventName: 'photo_taken',
+      sourceType: 'LANDMARK',
+      sourceId: landmark.landmarkId,
+      eventPayload: {
+        trip_id: trip.tripId,
+        photo_id: photo.photoId,
+        quality_score: photo.qualityScore,
+        is_first_photo: true,
+      },
+      occurredAt: now,
+    });
+
+    const profile = this.findPlayerById(playerId) ?? state.profile;
+    const result: CompleteLandmarkResult = {
+      trip: this.tripWithRoute(trip),
+      profile: { ...profile },
+      photo,
+      walletBalances: await this.getWalletBalances(playerId),
+      walletTransactions: [rewardTx],
+    };
+
+    this.completeLandmarkResultByPlayerAndIdempotencyKey.set(idempotencyKey, this.cloneCompleteLandmarkResult(result));
     return result;
   }
 
@@ -586,7 +707,7 @@ export class InMemoryGameDataStore implements GameDataStore {
 
   private transitionTutorialState(playerId: string, nextState: string): void {
     for (const player of this.playersByIdentity.values()) {
-      if (player.playerId === playerId && player.tutorialState === 'NOT_STARTED') {
+      if (player.playerId === playerId && player.tutorialState !== nextState) {
         player.tutorialState = nextState;
         player.updatedAt = new Date().toISOString();
       }
@@ -608,5 +729,18 @@ export class InMemoryGameDataStore implements GameDataStore {
 
   private cloneDriveTickResult(result: DriveTickResult): DriveTickResult {
     return JSON.parse(JSON.stringify(result)) as DriveTickResult;
+  }
+
+  private cloneCompleteLandmarkResult(result: CompleteLandmarkResult): CompleteLandmarkResult {
+    return JSON.parse(JSON.stringify(result)) as CompleteLandmarkResult;
+  }
+
+  private findPlayerById(playerId: string): PlayerProfile | undefined {
+    for (const player of this.playersByIdentity.values()) {
+      if (player.playerId === playerId) {
+        return player;
+      }
+    }
+    return undefined;
   }
 }

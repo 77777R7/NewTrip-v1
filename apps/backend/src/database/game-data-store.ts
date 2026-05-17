@@ -184,6 +184,36 @@ export type DriveTickResult = {
   walletTransactions: WalletTransaction[];
 };
 
+export type PlayerPhoto = {
+  photoId: string;
+  playerId: string;
+  tripId: string;
+  landmarkId: string;
+  photoCardKey: string;
+  qualityScore: number;
+  weather: string;
+  dayPhase: string;
+  cleanlinessAtShot: number;
+  isFirstPhoto: boolean;
+  rewardTxId: string | null;
+  takenAt: string;
+};
+
+export type CompleteLandmarkInput = {
+  tripId: string;
+  landmarkId: string;
+  action: 'TAKE_PHOTO';
+  idempotencyKey: string;
+};
+
+export type CompleteLandmarkResult = {
+  trip: Trip;
+  profile: PlayerProfile;
+  photo: PlayerPhoto;
+  walletBalances: WalletBalance[];
+  walletTransactions: WalletTransaction[];
+};
+
 export interface GameDataStore {
   getOrCreatePlayerState(identity: AuthIdentity): Promise<PlayerState>;
   getOrCreatePlayerProfile(identity: AuthIdentity): Promise<PlayerProfile>;
@@ -196,4 +226,5 @@ export interface GameDataStore {
   startTrip(identity: AuthIdentity, input: StartTripInput): Promise<Trip>;
   abandonTrip(identity: AuthIdentity, input: AbandonTripInput): Promise<Trip>;
   driveTick(identity: AuthIdentity, input: DriveTickInput): Promise<DriveTickResult>;
+  completeLandmark(identity: AuthIdentity, input: CompleteLandmarkInput): Promise<CompleteLandmarkResult>;
 }

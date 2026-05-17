@@ -5,6 +5,7 @@ import { HealthModule } from './health/health.module';
 import { PlayerModule } from './player/player.module';
 import { RoutesModule } from './routes/routes.module';
 import { TripModule } from './trip/trip.module';
+import { VehicleModule } from './vehicle/vehicle.module';
 import { WalletModule } from './wallet/wallet.module';
 
 @Module({
@@ -18,6 +19,7 @@ import { WalletModule } from './wallet/wallet.module';
     PlayerModule,
     RoutesModule,
     TripModule,
+    VehicleModule,
   ],
 })
 export class AppModule {}

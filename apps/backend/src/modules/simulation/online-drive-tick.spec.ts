@@ -69,4 +69,28 @@ describe('online drive tick simulation', () => {
     expect(result.updatedFuel).toBe(0);
     expect(result.updatedTripStatus).toBe('FORCED_STOP');
   });
+
+  it('does not advance when fuel is already empty', () => {
+    const result = simulateOnlineDriveTick({
+      mode: 'HOLD_TO_DRIVE',
+      now: new Date('2026-05-16T00:00:15.000Z'),
+      lastSimulatedAt: new Date('2026-05-16T00:00:00.000Z'),
+      currentDistanceKm: 10,
+      elapsedRealSeconds: 0,
+      previousOnlineTokenMeterKm: 0,
+      routeTotalDistanceKm: 100,
+      routeRewardMultiplier: 1,
+      vehicle: {
+        ...vehicle,
+        currentFuel: 0,
+      },
+      segments: [segment],
+      landmarks: [],
+    });
+
+    expect(result.distanceGainKm).toBe(0);
+    expect(result.finalDistanceKm).toBe(10);
+    expect(result.forcedStopReason).toBe('LOW_FUEL');
+    expect(result.updatedTripStatus).toBe('FORCED_STOP');
+  });
 });

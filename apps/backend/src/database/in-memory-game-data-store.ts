@@ -21,6 +21,8 @@ import {
   RouteSegment,
   StartTripInput,
   Trip,
+  VehicleMaintenanceInput,
+  VehicleMaintenanceResult,
   WalletBalance,
   WalletMutationInput,
   WalletTransaction,
@@ -28,6 +30,7 @@ import {
 import { isOnlineDriveModeUnlocked, simulateOnlineDriveTick } from '../modules/simulation/online-drive-tick';
 import { simulateOfflineProgress } from '../modules/simulation/offline-progress';
 import { DEFAULT_SIMULATION_CONFIG } from '../modules/simulation/simulation.constants';
+import { calculateVehicleMaintenance } from '../modules/vehicle-maintenance/maintenance.formulas';
 import { calculatePhotoQualityScore } from '../modules/landmark/photo-quality';
 import { nextTutorialStateAfterDriveTick, nextTutorialStateAfterPhoto } from '../modules/tutorial/tutorial-state';
 
@@ -160,6 +163,7 @@ export class InMemoryGameDataStore implements GameDataStore {
   private readonly abandonedTripByPlayerAndIdempotencyKey = new Map<string, Trip>();
   private readonly driveTickResultByPlayerAndIdempotencyKey = new Map<string, DriveTickResult>();
   private readonly completeLandmarkResultByPlayerAndIdempotencyKey = new Map<string, CompleteLandmarkResult>();
+  private readonly vehicleMaintenanceResultByPlayerAndIdempotencyKey = new Map<string, VehicleMaintenanceResult>();
   private readonly offlineReports: OfflineReport[] = [];
   private readonly playerPhotos: PlayerPhoto[] = [];
   private readonly analyticsEvents: InternalAnalyticsEvent[] = [];
@@ -662,6 +666,65 @@ export class InMemoryGameDataStore implements GameDataStore {
     };
   }
 
+  async maintainVehicle(identity: AuthIdentity, input: VehicleMaintenanceInput): Promise<VehicleMaintenanceResult> {
+    const profile = await this.getOrCreatePlayerProfile(identity);
+    this.ensurePlayerDefaults(profile.playerId);
+    const playerId = profile.playerId;
+    const resultKey = `${playerId}:${input.idempotencyKey}`;
+    const existingForKey = this.vehicleMaintenanceResultByPlayerAndIdempotencyKey.get(resultKey);
+    if (existingForKey) {
+      return this.cloneVehicleMaintenanceResult(existingForKey);
+    }
+
+    const vehicle = this.vehiclesByPlayer
+      .get(playerId)
+      ?.find((candidate) => candidate.playerVehicleId === (input.playerVehicleId ?? profile.currentVehicleId));
+    if (!vehicle) {
+      throw new Error('VEHICLE_NOT_FOUND');
+    }
+
+    const maintenance = calculateVehicleMaintenance(input.action, vehicle);
+    const walletTransaction = await this.spendWallet({
+      playerId,
+      currency: 'ROAD_COINS',
+      amount: maintenance.costRoadCoins,
+      reason: this.maintenanceReason(input.action),
+      sourceType: 'VEHICLE_MAINTENANCE',
+      sourceId: vehicle.playerVehicleId,
+      idempotencyKey: `${input.idempotencyKey}:road_coins`,
+    });
+
+    vehicle.currentFuel = maintenance.targetFuel;
+    vehicle.currentCleanliness = maintenance.targetCleanliness;
+    vehicle.currentDurability = maintenance.targetDurability;
+
+    this.analyticsEvents.push({
+      playerId,
+      eventName: 'vehicle_maintenance_completed',
+      sourceType: 'VEHICLE',
+      sourceId: vehicle.playerVehicleId,
+      eventPayload: {
+        action: input.action,
+        cost_road_coins: maintenance.costRoadCoins,
+        restored_amount: maintenance.restoredAmount,
+      },
+      occurredAt: new Date().toISOString(),
+    });
+
+    const result: VehicleMaintenanceResult = {
+      action: input.action,
+      vehicle: { ...vehicle },
+      costRoadCoins: maintenance.costRoadCoins,
+      restoredAmount: maintenance.restoredAmount,
+      walletBalances: await this.getWalletBalances(playerId),
+      walletTransactions: [walletTransaction],
+    };
+
+    this.vehicleMaintenanceResultByPlayerAndIdempotencyKey.set(resultKey, this.cloneVehicleMaintenanceResult(result));
+    this.touchPlayerLastSeen(playerId);
+    return result;
+  }
+
   private mutateWallet(input: WalletMutationInput, signedAmount: number): WalletTransaction {
     this.ensurePlayerDefaults(input.playerId);
     const txKey = `${input.playerId}:${input.idempotencyKey}`;
@@ -927,6 +990,18 @@ export class InMemoryGameDataStore implements GameDataStore {
 
   private cloneCompleteLandmarkResult(result: CompleteLandmarkResult): CompleteLandmarkResult {
     return JSON.parse(JSON.stringify(result)) as CompleteLandmarkResult;
+  }
+
+  private cloneVehicleMaintenanceResult(result: VehicleMaintenanceResult): VehicleMaintenanceResult {
+    return JSON.parse(JSON.stringify(result)) as VehicleMaintenanceResult;
+  }
+
+  private maintenanceReason(action: VehicleMaintenanceInput['action']): string {
+    return {
+      REFUEL: 'VEHICLE_REFUEL',
+      CLEAN: 'VEHICLE_CLEAN',
+      REPAIR: 'VEHICLE_REPAIR',
+    }[action];
   }
 
   private findPlayerById(playerId: string): PlayerProfile | undefined {

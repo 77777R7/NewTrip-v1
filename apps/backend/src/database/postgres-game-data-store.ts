@@ -23,6 +23,8 @@ import {
   RouteSegment,
   StartTripInput,
   Trip,
+  VehicleMaintenanceInput,
+  VehicleMaintenanceResult,
   WalletBalance,
   WalletMutationInput,
   WalletTransaction,
@@ -32,6 +34,7 @@ import { simulateOfflineProgress } from '../modules/simulation/offline-progress'
 import { DEFAULT_SIMULATION_CONFIG } from '../modules/simulation/simulation.constants';
 import { isOnlineDriveModeUnlocked, simulateOnlineDriveTick } from '../modules/simulation/online-drive-tick';
 import { nextTutorialStateAfterDriveTick, nextTutorialStateAfterPhoto } from '../modules/tutorial/tutorial-state';
+import { calculateVehicleMaintenance } from '../modules/vehicle-maintenance/maintenance.formulas';
 
 @Injectable()
 export class PostgresGameDataStore implements GameDataStore, OnModuleDestroy {
@@ -1017,6 +1020,147 @@ export class PostgresGameDataStore implements GameDataStore, OnModuleDestroy {
     }
   }
 
+  async maintainVehicle(identity: AuthIdentity, input: VehicleMaintenanceInput): Promise<VehicleMaintenanceResult> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('begin');
+      const profile = await this.getOrCreatePlayerProfileInTransaction(client, identity);
+      await this.ensurePlayerDefaultsInTransaction(client, profile.playerId);
+
+      const existingForKey = await client.query(
+        `
+          select result_payload
+          from public.vehicle_maintenance_actions
+          where player_id = $1 and idempotency_key = $2
+          limit 1
+          for update
+        `,
+        [profile.playerId, input.idempotencyKey],
+      );
+      if (existingForKey.rowCount) {
+        await client.query('commit');
+        return existingForKey.rows[0].result_payload as VehicleMaintenanceResult;
+      }
+
+      const vehicleResult = await client.query(
+        `
+          select
+            pv.*,
+            vd.vehicle_key,
+            vd.display_name,
+            vd.base_speed_kmph,
+            vd.fuel_capacity,
+            vd.fuel_consumption_per_km,
+            vd.durability_loss_per_km,
+            vd.cleanliness_loss_per_km,
+            vd.offline_efficiency,
+            vd.weather_resistance
+          from public.player_vehicles pv
+          join public.vehicle_definitions vd on vd.vehicle_def_id = pv.vehicle_def_id
+          where pv.player_id = $1
+            and pv.player_vehicle_id = coalesce($2::uuid, $3::uuid)
+          for update
+        `,
+        [profile.playerId, input.playerVehicleId ?? null, profile.currentVehicleId],
+      );
+      if (!vehicleResult.rowCount) {
+        throw new Error('VEHICLE_NOT_FOUND');
+      }
+
+      const vehicle = this.toPlayerVehicle(vehicleResult.rows[0]);
+      const maintenance = calculateVehicleMaintenance(input.action, vehicle);
+      const walletTransaction = await this.mutateWalletInTransaction(client, {
+        playerId: profile.playerId,
+        currency: 'ROAD_COINS',
+        amount: maintenance.costRoadCoins,
+        reason: this.maintenanceReason(input.action),
+        sourceType: 'VEHICLE_MAINTENANCE',
+        sourceId: vehicle.playerVehicleId,
+        idempotencyKey: `${input.idempotencyKey}:road_coins`,
+      }, -maintenance.costRoadCoins);
+
+      await client.query(
+        `
+          update public.player_vehicles
+          set current_fuel = $2,
+              current_cleanliness = $3,
+              current_durability = $4,
+              version = version + 1
+          where player_vehicle_id = $1
+        `,
+        [
+          vehicle.playerVehicleId,
+          maintenance.targetFuel,
+          maintenance.targetCleanliness,
+          maintenance.targetDurability,
+        ],
+      );
+
+      await this.touchPlayerLastSeenInTransaction(client, profile.playerId);
+
+      const updatedVehicle: PlayerVehicle = {
+        ...vehicle,
+        currentFuel: maintenance.targetFuel,
+        currentCleanliness: maintenance.targetCleanliness,
+        currentDurability: maintenance.targetDurability,
+      };
+      const result: VehicleMaintenanceResult = {
+        action: input.action,
+        vehicle: updatedVehicle,
+        costRoadCoins: maintenance.costRoadCoins,
+        restoredAmount: maintenance.restoredAmount,
+        walletBalances: await this.getWalletBalancesInTransaction(client, profile.playerId),
+        walletTransactions: [walletTransaction],
+      };
+
+      await client.query(
+        `
+          insert into public.vehicle_maintenance_actions (
+            player_id,
+            player_vehicle_id,
+            action,
+            idempotency_key,
+            cost_road_coins,
+            restored_amount,
+            wallet_transaction_id,
+            result_payload
+          )
+          values ($1, $2, $3, $4, $5, $6, $7, $8::jsonb)
+        `,
+        [
+          profile.playerId,
+          vehicle.playerVehicleId,
+          input.action,
+          input.idempotencyKey,
+          maintenance.costRoadCoins,
+          maintenance.restoredAmount,
+          walletTransaction.transactionId,
+          JSON.stringify(result),
+        ],
+      );
+
+      await this.insertAnalyticsEventInTransaction(client, {
+        playerId: profile.playerId,
+        eventName: 'vehicle_maintenance_completed',
+        sourceType: 'VEHICLE',
+        sourceId: vehicle.playerVehicleId,
+        payload: {
+          action: input.action,
+          cost_road_coins: maintenance.costRoadCoins,
+          restored_amount: maintenance.restoredAmount,
+        },
+      });
+
+      await client.query('commit');
+      return result;
+    } catch (error) {
+      await client.query('rollback');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
   private async getOrCreatePendingOfflineReportInTransaction(
     client: PoolClient,
     profile: PlayerProfile,
@@ -1653,6 +1797,14 @@ export class PostgresGameDataStore implements GameDataStore, OnModuleDestroy {
 
   private hasFullRouteAccess(player: PlayerProfile): boolean {
     return ['ROUTE_COMPLETED', 'FULL_SYSTEM_UNLOCKED'].includes(player.tutorialState);
+  }
+
+  private maintenanceReason(action: VehicleMaintenanceInput['action']): string {
+    return {
+      REFUEL: 'VEHICLE_REFUEL',
+      CLEAN: 'VEHICLE_CLEAN',
+      REPAIR: 'VEHICLE_REPAIR',
+    }[action];
   }
 
   private toPlayerProfile(row: QueryResultRow): PlayerProfile {

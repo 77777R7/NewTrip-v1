@@ -27,4 +27,13 @@ export const DEFAULT_SIMULATION_CONFIG = {
     maxOfflineHours: 8,
     minOfflineReportSeconds: 60,
   },
+  maintenance: {
+    fuelPricePerLiter: 2,
+    baseCleanCost: 15,
+    cleanPricePerPoint: 0.8,
+    baseRepairCost: 25,
+    repairPricePerPoint: 1.2,
+    regionPriceMultiplier: 1,
+    rarityMultiplier: 1,
+  },
 } as const;

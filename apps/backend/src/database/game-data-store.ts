@@ -55,6 +55,8 @@ export type PlayerVehicle = {
   isSelected: boolean;
 };
 
+export type VehicleMaintenanceAction = 'REFUEL' | 'CLEAN' | 'REPAIR';
+
 export type PlayerState = {
   profile: PlayerProfile;
   walletBalances: WalletBalance[];
@@ -247,6 +249,21 @@ export type ClaimOfflineReportResult = {
   walletTransactions: WalletTransaction[];
 };
 
+export type VehicleMaintenanceInput = {
+  action: VehicleMaintenanceAction;
+  playerVehicleId?: string;
+  idempotencyKey: string;
+};
+
+export type VehicleMaintenanceResult = {
+  action: VehicleMaintenanceAction;
+  vehicle: PlayerVehicle;
+  costRoadCoins: number;
+  restoredAmount: number;
+  walletBalances: WalletBalance[];
+  walletTransactions: WalletTransaction[];
+};
+
 export interface GameDataStore {
   getOrCreatePlayerState(identity: AuthIdentity): Promise<PlayerState>;
   getOrCreatePlayerProfile(identity: AuthIdentity): Promise<PlayerProfile>;
@@ -261,4 +278,5 @@ export interface GameDataStore {
   driveTick(identity: AuthIdentity, input: DriveTickInput): Promise<DriveTickResult>;
   completeLandmark(identity: AuthIdentity, input: CompleteLandmarkInput): Promise<CompleteLandmarkResult>;
   claimOfflineReport(identity: AuthIdentity, input: ClaimOfflineReportInput): Promise<ClaimOfflineReportResult>;
+  maintainVehicle(identity: AuthIdentity, input: VehicleMaintenanceInput): Promise<VehicleMaintenanceResult>;
 }

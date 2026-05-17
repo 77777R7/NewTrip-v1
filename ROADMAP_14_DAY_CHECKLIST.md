@@ -368,29 +368,29 @@ Goal: player can refuel, clean, and repair without breaking first-day flow.
 
 APIs:
 
-- [ ] `POST /vehicle/refuel`.
-- [ ] `POST /vehicle/clean`.
-- [ ] `POST /vehicle/repair`.
+- [x] `POST /vehicle/refuel`.
+- [x] `POST /vehicle/clean`.
+- [x] `POST /vehicle/repair`.
 
 Default prices:
 
-- [ ] `fuel_price_per_liter = 2`.
-- [ ] `base_clean_cost = 15`.
-- [ ] `clean_price_per_point = 0.8`.
-- [ ] `base_repair_cost = 25`.
-- [ ] `repair_price_per_point = 1.2`.
+- [x] `fuel_price_per_liter = 2`.
+- [x] `base_clean_cost = 15`.
+- [x] `clean_price_per_point = 0.8`.
+- [x] `base_repair_cost = 25`.
+- [x] `repair_price_per_point = 1.2`.
 
 Acceptance:
 
-- [ ] Fuel at 0 makes drive tick fail.
-- [ ] Refuel allows driving to continue.
-- [ ] Clean restores cleanliness.
-- [ ] Repair restores durability.
-- [ ] Maintenance spends Road Coins.
-- [ ] Maintenance writes wallet transactions.
-- [ ] Insufficient balance blocks maintenance.
-- [ ] Full fuel/cleanliness/durability edge cases pass.
-- [ ] Maintenance APIs are idempotent.
+- [x] Fuel at 0 makes drive tick fail.
+- [x] Refuel allows driving to continue.
+- [x] Clean restores cleanliness.
+- [x] Repair restores durability.
+- [x] Maintenance spends Road Coins.
+- [x] Maintenance writes wallet transactions.
+- [x] Insufficient balance blocks maintenance.
+- [x] Full fuel/cleanliness/durability edge cases pass.
+- [x] Maintenance APIs are idempotent.
 
 ## Day 10: Route Completion And Route Unlock
 
@@ -683,3 +683,4 @@ Trip Simulation Engine
 - 2026-05-16: Completed Day 6 online drive tick: `/trip/drive-tick`, backend-authoritative distance/vehicle/wallet updates, tick idempotency, max-duration clamp, landmark forced stop, analytics event writes, and route-end/low-fuel tests.
 - 2026-05-17: Completed Day 7 tutorial landmark/photo slice: tutorial state machine through `PHOTO_TAKEN`, Auto Driving unlock guard, `POST /trip/complete-landmark`, `player_photos`, first-photo wallet reward, and idempotent retry coverage.
 - 2026-05-17: Completed Day 8 offline Travel Report slice: `offline_reports`, `simulate_offline_progress`, pending reports from `/player/state`, claim-only wallet payout, duplicate pending-report prevention, idempotent claim retry, and Supabase migration verification.
+- 2026-05-17: Completed Day 9 vehicle maintenance slice: `POST /vehicle/refuel`, `/vehicle/clean`, `/vehicle/repair`, default price formulas, Road Coins spends through wallet ledger, idempotent maintenance actions, full-stat/insufficient-funds guards, and Supabase migration verification.

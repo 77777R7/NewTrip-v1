@@ -48,17 +48,9 @@ namespace NewTrip.Client.Editor
                 "RoadOnly_SingleYellowLine_Material",
                 LoadTexture(RoadSurfaceSupportImportSettings.LaneAssetPath)
             );
-            Material edgeStripMaterial = CreateTextureMaterial(
-                "RoadOnly_EdgeWhiteLineStrip_Material",
-                LoadTexture(RoadSurfaceSupportImportSettings.RoadEdgeWhiteLineStripAssetPath)
-            );
-            Material leftShoulderMaterial = CreateTextureMaterial(
-                "RoadOnly_LeftDirtShoulder_Material",
-                LoadTexture(RoadSurfaceSupportImportSettings.DirtShoulderAssetPath)
-            );
-            Material rightShoulderMaterial = CreateTextureMaterial(
-                "RoadOnly_RightFlowerBorderShoulder_Material",
-                LoadTexture(RoadSurfaceSupportImportSettings.RoadsideFlowerBorderAssetPath)
+            Material edgeLineMaterial = CreateSolidMaterial(
+                "RoadOnly_WhiteEdgeLine_Material",
+                new Color(0.96f, 0.82f, 0.68f, 0.88f)
             );
             Material crackDetailMaterial = CreateTextureMaterial(
                 "RoadOnly_CrackDetail_Source_Material",
@@ -67,9 +59,7 @@ namespace NewTrip.Client.Editor
             crackDetailMaterial.SetColor("_Color", new Color(1f, 1f, 1f, 0f));
             LogTexture("RoadOnly road", roadMaterial);
             LogTexture("RoadOnly lane", laneMaterial);
-            LogTexture("RoadOnly edge strip", edgeStripMaterial);
-            LogTexture("RoadOnly left shoulder", leftShoulderMaterial);
-            LogTexture("RoadOnly right shoulder", rightShoulderMaterial);
+            LogTexture("RoadOnly edge", edgeLineMaterial);
             LogTexture("RoadOnly crack detail", crackDetailMaterial);
 
             GameObject roadObject = CreateChild(root, "RoadMesh");
@@ -95,47 +85,6 @@ namespace NewTrip.Client.Editor
             roadRenderer.SetMaterial(roadMaterial);
             SetRendererOrder(roadObject, 10);
             roadRenderer.RebuildMesh();
-
-            CreateRoadEdgeStrip(
-                root,
-                "RoadEdgeLeftStrip",
-                roadRenderer,
-                motionState,
-                edgeStripMaterial,
-                RoadShoulderSide.Left
-            );
-            CreateRoadEdgeStrip(
-                root,
-                "RoadEdgeRightStrip",
-                roadRenderer,
-                motionState,
-                edgeStripMaterial,
-                RoadShoulderSide.Right
-            );
-            CreateRoadShoulder(
-                root,
-                "RoadShoulderLeftDirt",
-                roadRenderer,
-                motionState,
-                leftShoulderMaterial,
-                RoadShoulderSide.Left,
-                innerRoadMultiplier: 0.92f,
-                outerRoadMultiplier: 1.14f,
-                nearTint: new Color(0.72f, 0.39f, 0.20f, 0.86f),
-                farTint: new Color(0.42f, 0.27f, 0.18f, 0.18f)
-            );
-            CreateRoadShoulder(
-                root,
-                "RoadShoulderRightFlowers",
-                roadRenderer,
-                motionState,
-                rightShoulderMaterial,
-                RoadShoulderSide.Right,
-                innerRoadMultiplier: 0.92f,
-                outerRoadMultiplier: 1.18f,
-                nearTint: new Color(1f, 0.92f, 0.76f, 1f),
-                farTint: new Color(0.56f, 0.50f, 0.34f, 0.28f)
-            );
 
             GameObject crackObject = CreateChild(root, "RoadCrackDetailMesh");
             Pseudo3DRoadRenderer crackRenderer = crackObject.AddComponent<Pseudo3DRoadRenderer>();
@@ -179,6 +128,23 @@ namespace NewTrip.Client.Editor
                 side: 1,
                 useRoadRelativeProjection: UseAcceptedWideRoadRelativeYellow
             );
+            CreateRoadEdgeLine(
+                root,
+                "RoadEdgeLeftLine",
+                roadRenderer,
+                motionState,
+                edgeLineMaterial,
+                side: -1
+            );
+            CreateRoadEdgeLine(
+                root,
+                "RoadEdgeRightLine",
+                roadRenderer,
+                motionState,
+                edgeLineMaterial,
+                side: 1
+            );
+
             camera.transform.position = new Vector3(0f, 0f, -10f);
             Selection.activeGameObject = root;
 
@@ -214,16 +180,14 @@ namespace NewTrip.Client.Editor
             RoadMotionState motionState = Object.FindAnyObjectByType<RoadMotionState>(FindObjectsInactive.Exclude);
             Pseudo3DRoadRenderer roadRenderer = GameObject.Find("RoadMesh")?.GetComponent<Pseudo3DRoadRenderer>();
             Pseudo3DRoadRenderer crackRenderer = GameObject.Find("RoadCrackDetailMesh")?.GetComponent<Pseudo3DRoadRenderer>();
-            RoadShoulderRenderer leftEdgeStripRenderer = GameObject.Find("RoadEdgeLeftStrip")?.GetComponent<RoadShoulderRenderer>();
-            RoadShoulderRenderer rightEdgeStripRenderer = GameObject.Find("RoadEdgeRightStrip")?.GetComponent<RoadShoulderRenderer>();
-            RoadShoulderRenderer leftShoulderRenderer = GameObject.Find("RoadShoulderLeftDirt")?.GetComponent<RoadShoulderRenderer>();
-            RoadShoulderRenderer rightShoulderRenderer = GameObject.Find("RoadShoulderRightFlowers")?.GetComponent<RoadShoulderRenderer>();
             LaneMarkingRenderer leftLaneRenderer = GameObject.Find("LaneYellowLeftMesh")?.GetComponent<LaneMarkingRenderer>();
             LaneMarkingRenderer rightLaneRenderer = GameObject.Find("LaneYellowRightMesh")?.GetComponent<LaneMarkingRenderer>();
+            LaneMarkingRenderer leftEdgeRenderer = GameObject.Find("RoadEdgeLeftLine")?.GetComponent<LaneMarkingRenderer>();
+            LaneMarkingRenderer rightEdgeRenderer = GameObject.Find("RoadEdgeRightLine")?.GetComponent<LaneMarkingRenderer>();
 
-            if (camera == null || motionState == null || roadRenderer == null || leftEdgeStripRenderer == null || rightEdgeStripRenderer == null || leftShoulderRenderer == null || rightShoulderRenderer == null || leftLaneRenderer == null || rightLaneRenderer == null)
+            if (camera == null || motionState == null || roadRenderer == null || leftLaneRenderer == null || rightLaneRenderer == null || leftEdgeRenderer == null || rightEdgeRenderer == null)
             {
-                Debug.LogError("RoadOnlyTest capture failed. Expected camera, motion state, road renderer, two road-edge strip renderers, two shoulder renderers, and two yellow-line renderers.");
+                Debug.LogError("RoadOnlyTest capture failed. Expected camera, motion state, road renderer, two yellow-line renderers, and two road-edge renderers.");
                 return;
             }
 
@@ -246,54 +210,22 @@ namespace NewTrip.Client.Editor
                 "RoadOnly_SingleYellowLine_CaptureMaterial",
                 LoadTexture(RoadSurfaceSupportImportSettings.LaneAssetPath)
             );
-            Material edgeStripMaterial = CreateTextureMaterial(
-                "RoadOnly_EdgeWhiteLineStrip_CaptureMaterial",
-                LoadTexture(RoadSurfaceSupportImportSettings.RoadEdgeWhiteLineStripAssetPath)
+            Material edgeLineMaterial = CreateSolidMaterial(
+                "RoadOnly_WhiteEdgeLine_CaptureMaterial",
+                new Color(0.96f, 0.82f, 0.68f, 0.88f)
             );
-            Material leftShoulderMaterial = CreateTextureMaterial(
-                "RoadOnly_LeftDirtShoulder_CaptureMaterial",
-                LoadTexture(RoadSurfaceSupportImportSettings.DirtShoulderAssetPath)
-            );
-            Material rightShoulderMaterial = CreateTextureMaterial(
-                "RoadOnly_RightFlowerBorderShoulder_CaptureMaterial",
-                LoadTexture(RoadSurfaceSupportImportSettings.RoadsideFlowerBorderAssetPath)
-            );
-            ConfigureRoadEdgeStrip(leftEdgeStripRenderer, RoadShoulderSide.Left);
-            ConfigureRoadEdgeStrip(rightEdgeStripRenderer, RoadShoulderSide.Right);
-            ConfigureRoadShoulder(
-                leftShoulderRenderer,
-                RoadShoulderSide.Left,
-                innerRoadMultiplier: 0.92f,
-                outerRoadMultiplier: 1.14f,
-                nearTint: new Color(0.72f, 0.39f, 0.20f, 0.86f),
-                farTint: new Color(0.42f, 0.27f, 0.18f, 0.18f)
-            );
-            ConfigureRoadShoulder(
-                rightShoulderRenderer,
-                RoadShoulderSide.Right,
-                innerRoadMultiplier: 0.92f,
-                outerRoadMultiplier: 1.18f,
-                nearTint: new Color(1f, 0.92f, 0.76f, 1f),
-                farTint: new Color(0.56f, 0.50f, 0.34f, 0.28f)
-            );
-            leftEdgeStripRenderer.SetMaterial(edgeStripMaterial);
-            rightEdgeStripRenderer.SetMaterial(edgeStripMaterial);
-            leftShoulderRenderer.SetMaterial(leftShoulderMaterial);
-            rightShoulderRenderer.SetMaterial(rightShoulderMaterial);
             leftLaneRenderer.SetMaterial(yellowLineMaterial);
             rightLaneRenderer.SetMaterial(yellowLineMaterial);
+            leftEdgeRenderer.SetMaterial(edgeLineMaterial);
+            rightEdgeRenderer.SetMaterial(edgeLineMaterial);
             LogTexture("RoadOnly capture yellow line", yellowLineMaterial);
-            LogTexture("RoadOnly capture edge strip", edgeStripMaterial);
-            LogTexture("RoadOnly capture left shoulder", leftShoulderMaterial);
-            LogTexture("RoadOnly capture right shoulder", rightShoulderMaterial);
+            LogTexture("RoadOnly capture edge line", edgeLineMaterial);
             roadRenderer.RebuildMesh();
             crackRenderer?.RebuildMesh();
-            leftEdgeStripRenderer.RebuildMesh();
-            rightEdgeStripRenderer.RebuildMesh();
-            leftShoulderRenderer.RebuildMesh();
-            rightShoulderRenderer.RebuildMesh();
             leftLaneRenderer.RebuildMesh();
             rightLaneRenderer.RebuildMesh();
+            leftEdgeRenderer.RebuildMesh();
+            rightEdgeRenderer.RebuildMesh();
 
             string screenshotOutputPath = GetScreenshotOutputPath();
             Directory.CreateDirectory(screenshotOutputPath);
@@ -301,34 +233,30 @@ namespace NewTrip.Client.Editor
             CaptureRoadOnlyVariant(
                 camera,
                 screenshotOutputPath,
-                "road_context_a_viewport_depth_yellow_shoulders",
+                "road_only_a_viewport_depth_yellow",
                 writeLegacyNames: false,
                 useRoadRelativeYellow: false,
                 motionState,
                 roadRenderer,
                 crackRenderer,
-                leftEdgeStripRenderer,
-                rightEdgeStripRenderer,
-                leftShoulderRenderer,
-                rightShoulderRenderer,
                 leftLaneRenderer,
-                rightLaneRenderer
+                rightLaneRenderer,
+                leftEdgeRenderer,
+                rightEdgeRenderer
             );
             CaptureRoadOnlyVariant(
                 camera,
                 screenshotOutputPath,
-                "road_context_b_road_relative_yellow_shoulders",
+                "road_only_b_road_relative_yellow_edges",
                 writeLegacyNames: true,
                 useRoadRelativeYellow: true,
                 motionState,
                 roadRenderer,
                 crackRenderer,
-                leftEdgeStripRenderer,
-                rightEdgeStripRenderer,
-                leftShoulderRenderer,
-                rightShoulderRenderer,
                 leftLaneRenderer,
-                rightLaneRenderer
+                rightLaneRenderer,
+                leftEdgeRenderer,
+                rightEdgeRenderer
             );
             AssetDatabase.Refresh();
 
@@ -340,12 +268,10 @@ namespace NewTrip.Client.Editor
             return Camera.main != null
                 && Object.FindAnyObjectByType<RoadMotionState>(FindObjectsInactive.Exclude) != null
                 && GameObject.Find("RoadMesh")?.GetComponent<Pseudo3DRoadRenderer>() != null
-                && GameObject.Find("RoadEdgeLeftStrip")?.GetComponent<RoadShoulderRenderer>() != null
-                && GameObject.Find("RoadEdgeRightStrip")?.GetComponent<RoadShoulderRenderer>() != null
-                && GameObject.Find("RoadShoulderLeftDirt")?.GetComponent<RoadShoulderRenderer>() != null
-                && GameObject.Find("RoadShoulderRightFlowers")?.GetComponent<RoadShoulderRenderer>() != null
                 && GameObject.Find("LaneYellowLeftMesh")?.GetComponent<LaneMarkingRenderer>() != null
-                && GameObject.Find("LaneYellowRightMesh")?.GetComponent<LaneMarkingRenderer>() != null;
+                && GameObject.Find("LaneYellowRightMesh")?.GetComponent<LaneMarkingRenderer>() != null
+                && GameObject.Find("RoadEdgeLeftLine")?.GetComponent<LaneMarkingRenderer>() != null
+                && GameObject.Find("RoadEdgeRightLine")?.GetComponent<LaneMarkingRenderer>() != null;
         }
 
         public static void CreateAndCaptureRoadOnlyTest()
@@ -376,99 +302,25 @@ namespace NewTrip.Client.Editor
             return laneRenderer;
         }
 
-        private static RoadShoulderRenderer CreateRoadShoulder(
+        private static LaneMarkingRenderer CreateRoadEdgeLine(
             GameObject root,
             string objectName,
             Pseudo3DRoadRenderer roadRenderer,
             RoadMotionState motionState,
             Material material,
-            RoadShoulderSide side,
-            float innerRoadMultiplier,
-            float outerRoadMultiplier,
-            Color nearTint,
-            Color farTint
-        )
-        {
-            GameObject shoulderObject = CreateChild(root, objectName);
-            RoadShoulderRenderer shoulderRenderer = shoulderObject.AddComponent<RoadShoulderRenderer>();
-            shoulderRenderer.roadRenderer = roadRenderer;
-            shoulderRenderer.motionState = motionState;
-            shoulderRenderer.sliceCount = 72;
-            ConfigureRoadShoulder(shoulderRenderer, side, innerRoadMultiplier, outerRoadMultiplier, nearTint, farTint);
-            shoulderRenderer.SetMaterial(material);
-            SetRendererOrder(shoulderObject, 11);
-            shoulderRenderer.RebuildMesh();
-            return shoulderRenderer;
-        }
-
-        private static RoadShoulderRenderer CreateRoadEdgeStrip(
-            GameObject root,
-            string objectName,
-            Pseudo3DRoadRenderer roadRenderer,
-            RoadMotionState motionState,
-            Material material,
-            RoadShoulderSide side
+            int side
         )
         {
             GameObject edgeObject = CreateChild(root, objectName);
-            RoadShoulderRenderer edgeRenderer = edgeObject.AddComponent<RoadShoulderRenderer>();
+            LaneMarkingRenderer edgeRenderer = edgeObject.AddComponent<LaneMarkingRenderer>();
             edgeRenderer.roadRenderer = roadRenderer;
             edgeRenderer.motionState = motionState;
             edgeRenderer.sliceCount = 72;
-            ConfigureRoadEdgeStrip(edgeRenderer, side);
+            ConfigureRoadEdgeLine(edgeRenderer, side);
             edgeRenderer.SetMaterial(material);
             SetRendererOrder(edgeObject, 19);
             edgeRenderer.RebuildMesh();
             return edgeRenderer;
-        }
-
-        private static void ConfigureRoadEdgeStrip(RoadShoulderRenderer edgeRenderer, RoadShoulderSide side)
-        {
-            edgeRenderer.side = side;
-            edgeRenderer.useExplicitRoadMultipliers = true;
-            edgeRenderer.innerRoadMultiplier = 0.80f;
-            edgeRenderer.outerRoadMultiplier = 0.94f;
-            edgeRenderer.mapDepthToTextureU = false;
-            edgeRenderer.shoulderWidthMultiplier = 0.14f;
-            edgeRenderer.textureRepeat = 5.8f;
-            edgeRenderer.textureMetersPerRepeat = 42f;
-            edgeRenderer.scrollMultiplier = 0.82f;
-            edgeRenderer.useDepthAwareMotion = true;
-            edgeRenderer.horizonMotionMultiplier = 0.08f;
-            edgeRenderer.motionDepthCurve = 1.35f;
-            edgeRenderer.useHorizonFade = true;
-            edgeRenderer.horizonFadeStartDepth = 0.55f;
-            edgeRenderer.horizonAlpha = 0.04f;
-            edgeRenderer.nearTint = Color.white;
-            edgeRenderer.farTint = new Color(0.74f, 0.64f, 0.55f, 0.26f);
-        }
-
-        private static void ConfigureRoadShoulder(
-            RoadShoulderRenderer shoulderRenderer,
-            RoadShoulderSide side,
-            float innerRoadMultiplier,
-            float outerRoadMultiplier,
-            Color nearTint,
-            Color farTint
-        )
-        {
-            shoulderRenderer.side = side;
-            shoulderRenderer.useExplicitRoadMultipliers = true;
-            shoulderRenderer.innerRoadMultiplier = innerRoadMultiplier;
-            shoulderRenderer.outerRoadMultiplier = outerRoadMultiplier;
-            shoulderRenderer.mapDepthToTextureU = side == RoadShoulderSide.Right;
-            shoulderRenderer.shoulderWidthMultiplier = 0.18f;
-            shoulderRenderer.textureRepeat = side == RoadShoulderSide.Left ? 4.2f : 2.1f;
-            shoulderRenderer.textureMetersPerRepeat = side == RoadShoulderSide.Left ? 48f : 58f;
-            shoulderRenderer.scrollMultiplier = 0.75f;
-            shoulderRenderer.useDepthAwareMotion = true;
-            shoulderRenderer.horizonMotionMultiplier = 0.08f;
-            shoulderRenderer.motionDepthCurve = 1.35f;
-            shoulderRenderer.useHorizonFade = true;
-            shoulderRenderer.horizonFadeStartDepth = 0.54f;
-            shoulderRenderer.horizonAlpha = 0.03f;
-            shoulderRenderer.nearTint = nearTint;
-            shoulderRenderer.farTint = farTint;
         }
 
         private static void ConfigureYellowLine(LaneMarkingRenderer laneRenderer, int side, bool useRoadRelativeProjection)
@@ -508,6 +360,26 @@ namespace NewTrip.Client.Editor
             laneRenderer.centerOffsetRoadRatio = 0f;
         }
 
+        private static void ConfigureRoadEdgeLine(LaneMarkingRenderer edgeRenderer, int side)
+        {
+            edgeRenderer.useRoadRelativeWidth = true;
+            edgeRenderer.useDepthViewportWidth = false;
+            edgeRenderer.laneWidthRoadRatio = 0.0065f;
+            edgeRenderer.minLaneHalfWidth = 0.0011f;
+            edgeRenderer.useDepthViewportCenterOffset = false;
+            edgeRenderer.centerOffsetRoadRatio = side * 0.86f;
+            edgeRenderer.textureUMin = 0f;
+            edgeRenderer.textureUMax = 1f;
+            edgeRenderer.textureRepeat = 1f;
+            edgeRenderer.textureMetersPerRepeat = 200f;
+            edgeRenderer.useDepthAwareMotion = true;
+            edgeRenderer.useHorizonFade = true;
+            edgeRenderer.horizonFadeStartDepth = 0.55f;
+            edgeRenderer.horizonAlpha = 0.02f;
+            edgeRenderer.nearTint = new Color(1f, 0.91f, 0.82f, 0.92f);
+            edgeRenderer.farTint = new Color(1f, 0.78f, 0.64f, 0.76f);
+        }
+
         private static void CaptureRoadOnlyVariant(
             Camera camera,
             string screenshotOutputPath,
@@ -517,21 +389,19 @@ namespace NewTrip.Client.Editor
             RoadMotionState motionState,
             Pseudo3DRoadRenderer roadRenderer,
             Pseudo3DRoadRenderer crackRenderer,
-            RoadShoulderRenderer leftEdgeStripRenderer,
-            RoadShoulderRenderer rightEdgeStripRenderer,
-            RoadShoulderRenderer leftShoulderRenderer,
-            RoadShoulderRenderer rightShoulderRenderer,
             LaneMarkingRenderer leftLaneRenderer,
-            LaneMarkingRenderer rightLaneRenderer
+            LaneMarkingRenderer rightLaneRenderer,
+            LaneMarkingRenderer leftEdgeRenderer,
+            LaneMarkingRenderer rightEdgeRenderer
         )
         {
             ConfigureYellowLine(leftLaneRenderer, side: -1, useRoadRelativeProjection: useRoadRelativeYellow);
             ConfigureYellowLine(rightLaneRenderer, side: 1, useRoadRelativeProjection: useRoadRelativeYellow);
-            ConfigureRoadEdgeStrip(leftEdgeStripRenderer, RoadShoulderSide.Left);
-            ConfigureRoadEdgeStrip(rightEdgeStripRenderer, RoadShoulderSide.Right);
-            ResetMotionOffsets(roadRenderer, leftLaneRenderer, rightLaneRenderer);
+            ConfigureRoadEdgeLine(leftEdgeRenderer, side: -1);
+            ConfigureRoadEdgeLine(rightEdgeRenderer, side: 1);
+            ResetMotionOffsets(roadRenderer, leftLaneRenderer, rightLaneRenderer, leftEdgeRenderer, rightEdgeRenderer);
             motionState.SetVisualDistanceForReview(0f);
-            RebuildAll(roadRenderer, crackRenderer, leftEdgeStripRenderer, rightEdgeStripRenderer, leftShoulderRenderer, rightShoulderRenderer, leftLaneRenderer, rightLaneRenderer);
+            RebuildAll(roadRenderer, crackRenderer, leftLaneRenderer, rightLaneRenderer, leftEdgeRenderer, rightEdgeRenderer);
 
             Texture2D stillFrame = RenderCamera(camera);
             WritePng(stillFrame, screenshotOutputPath, prefix + "_still.png");
@@ -542,7 +412,7 @@ namespace NewTrip.Client.Editor
             }
 
             motionState.SetVisualDistanceForReview(motionState.VisualSpeedMetersPerSecond * 10f);
-            RefreshAll(roadRenderer, crackRenderer, leftEdgeStripRenderer, rightEdgeStripRenderer, leftShoulderRenderer, rightShoulderRenderer, leftLaneRenderer, rightLaneRenderer);
+            RefreshAll(roadRenderer, crackRenderer, leftLaneRenderer, rightLaneRenderer, leftEdgeRenderer, rightEdgeRenderer);
             Texture2D motionFrame = RenderCamera(camera);
             WritePng(motionFrame, screenshotOutputPath, prefix + "_10s_motion.png");
 
@@ -551,9 +421,9 @@ namespace NewTrip.Client.Editor
                 WritePng(motionFrame, screenshotOutputPath, "road_only_10s_motion.png");
             }
 
-            ResetMotionOffsets(roadRenderer, leftLaneRenderer, rightLaneRenderer);
+            ResetMotionOffsets(roadRenderer, leftLaneRenderer, rightLaneRenderer, leftEdgeRenderer, rightEdgeRenderer);
             motionState.SetVisualDistanceForReview(0f);
-            RebuildAll(roadRenderer, crackRenderer, leftEdgeStripRenderer, rightEdgeStripRenderer, leftShoulderRenderer, rightShoulderRenderer, leftLaneRenderer, rightLaneRenderer);
+            RebuildAll(roadRenderer, crackRenderer, leftLaneRenderer, rightLaneRenderer, leftEdgeRenderer, rightEdgeRenderer);
             RenderCropToPng(camera, screenshotOutputPath, prefix + "_lane_horizon_closeup.png", new RectInt(420, 860, 240, 300));
             RenderCropToPng(camera, screenshotOutputPath, prefix + "_road_bottom_closeup.png", new RectInt(90, 80, 900, 420));
 
@@ -580,19 +450,11 @@ namespace NewTrip.Client.Editor
         private static void RebuildAll(
             Pseudo3DRoadRenderer roadRenderer,
             Pseudo3DRoadRenderer crackRenderer,
-            RoadShoulderRenderer leftEdgeStripRenderer,
-            RoadShoulderRenderer rightEdgeStripRenderer,
-            RoadShoulderRenderer leftShoulderRenderer,
-            RoadShoulderRenderer rightShoulderRenderer,
             params LaneMarkingRenderer[] lineRenderers
         )
         {
             roadRenderer.RebuildMesh();
             crackRenderer?.RebuildMesh();
-            leftEdgeStripRenderer.RebuildMesh();
-            rightEdgeStripRenderer.RebuildMesh();
-            leftShoulderRenderer.RebuildMesh();
-            rightShoulderRenderer.RebuildMesh();
 
             foreach (LaneMarkingRenderer renderer in lineRenderers)
             {
@@ -603,19 +465,11 @@ namespace NewTrip.Client.Editor
         private static void RefreshAll(
             Pseudo3DRoadRenderer roadRenderer,
             Pseudo3DRoadRenderer crackRenderer,
-            RoadShoulderRenderer leftEdgeStripRenderer,
-            RoadShoulderRenderer rightEdgeStripRenderer,
-            RoadShoulderRenderer leftShoulderRenderer,
-            RoadShoulderRenderer rightShoulderRenderer,
             params LaneMarkingRenderer[] lineRenderers
         )
         {
             roadRenderer.RefreshMotionForReview();
             crackRenderer?.RefreshMotionForReview();
-            leftEdgeStripRenderer.RefreshMotionForReview();
-            rightEdgeStripRenderer.RefreshMotionForReview();
-            leftShoulderRenderer.RefreshMotionForReview();
-            rightShoulderRenderer.RefreshMotionForReview();
 
             foreach (LaneMarkingRenderer renderer in lineRenderers)
             {
@@ -683,6 +537,22 @@ namespace NewTrip.Client.Editor
             };
             material.SetColor("_Color", Color.white);
             material.SetInt("_Cull", (int)UnityEngine.Rendering.CullMode.Off);
+            return material;
+        }
+
+        private static Material CreateSolidMaterial(string materialName, Color color)
+        {
+            Texture2D texture = new Texture2D(1, 1, TextureFormat.RGBA32, mipChain: false)
+            {
+                name = materialName + "_Texture",
+                filterMode = FilterMode.Point,
+                wrapMode = TextureWrapMode.Repeat
+            };
+            texture.SetPixel(0, 0, Color.white);
+            texture.Apply(updateMipmaps: false, makeNoLongerReadable: false);
+
+            Material material = CreateTextureMaterial(materialName, texture);
+            material.SetColor("_Color", color);
             return material;
         }
 

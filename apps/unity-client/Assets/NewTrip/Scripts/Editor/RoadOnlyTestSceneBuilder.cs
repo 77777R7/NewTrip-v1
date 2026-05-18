@@ -18,6 +18,7 @@ namespace NewTrip.Client.Editor
         private const float RenderHeight = 10f;
         private const int CaptureWidth = 1080;
         private const int CaptureHeight = 1920;
+        private const bool UseAcceptedWideRoadRelativeYellow = true;
 
         [MenuItem("NewTrip/Road Prototype/Create RoadOnlyTest Scene")]
         public static void CreateRoadOnlyTestScene()
@@ -116,7 +117,7 @@ namespace NewTrip.Client.Editor
                 motionState,
                 laneMaterial,
                 side: -1,
-                useRoadRelativeProjection: true
+                useRoadRelativeProjection: UseAcceptedWideRoadRelativeYellow
             );
             CreateProjectedYellowLine(
                 root,
@@ -125,7 +126,7 @@ namespace NewTrip.Client.Editor
                 motionState,
                 laneMaterial,
                 side: 1,
-                useRoadRelativeProjection: true
+                useRoadRelativeProjection: UseAcceptedWideRoadRelativeYellow
             );
             CreateRoadEdgeLine(
                 root,

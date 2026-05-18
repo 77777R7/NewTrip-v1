@@ -132,6 +132,19 @@ gap_world_length_m: 8-14
 
 For a continuous double-yellow strip, use a repeated transparent strip but drive its vertical coordinate from world distance and slice depth. Do not use a fixed screen-space strip.
 
+Accepted NewTrip V1 default:
+
+```text
+lane_preset: B / wide road-relative double yellow
+line_width_basis: road-relative, not fixed viewport
+line_center_offset_basis: road-relative
+near_gap: visibly readable and wider than A
+horizon_behavior: both yellow lines and the center gap shrink together, then fade
+review_status: accepted as the default for RoadOnly and runtime road composition
+```
+
+The older viewport-depth yellow-line pass is retained only as a review comparison. Future road, car, shoulder, guardrail, and background integration should use the accepted B preset unless a later playtest explicitly replaces it.
+
 ## Road Texture Motion
 
 Road texture should be distance-addressed:

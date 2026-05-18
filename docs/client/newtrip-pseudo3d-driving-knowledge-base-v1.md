@@ -359,6 +359,15 @@ verdict: pass / iterate / reject
 
 Pass means the road and lane are visually stable in motion, not merely pretty in stills.
 
+Accepted lane result as of 2026-05-18:
+
+```text
+default_lane_preset: RoadOnly B
+style: wide road-relative double yellow
+use_for_future_runtime_composite: yes
+keep_a_viewport_depth_variant: comparison only
+```
+
 ## Next Implementation Pass
 
 The next Unity sprint should be:

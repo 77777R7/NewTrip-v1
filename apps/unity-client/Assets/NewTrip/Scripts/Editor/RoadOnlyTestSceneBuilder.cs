@@ -47,6 +47,10 @@ namespace NewTrip.Client.Editor
                 "RoadOnly_SingleYellowLine_Material",
                 LoadTexture(RoadSurfaceSupportImportSettings.LaneAssetPath)
             );
+            Material edgeLineMaterial = CreateSolidMaterial(
+                "RoadOnly_WhiteEdgeLine_Material",
+                new Color(0.96f, 0.82f, 0.68f, 0.88f)
+            );
             Material crackDetailMaterial = CreateTextureMaterial(
                 "RoadOnly_CrackDetail_Source_Material",
                 LoadTexture(RoadSurfaceSupportImportSettings.CrackDecalAssetPath)
@@ -54,6 +58,7 @@ namespace NewTrip.Client.Editor
             crackDetailMaterial.SetColor("_Color", new Color(1f, 1f, 1f, 0f));
             LogTexture("RoadOnly road", roadMaterial);
             LogTexture("RoadOnly lane", laneMaterial);
+            LogTexture("RoadOnly edge", edgeLineMaterial);
             LogTexture("RoadOnly crack detail", crackDetailMaterial);
 
             GameObject roadObject = CreateChild(root, "RoadMesh");
@@ -110,7 +115,8 @@ namespace NewTrip.Client.Editor
                 roadRenderer,
                 motionState,
                 laneMaterial,
-                side: -1
+                side: -1,
+                useRoadRelativeProjection: true
             );
             CreateProjectedYellowLine(
                 root,
@@ -118,6 +124,23 @@ namespace NewTrip.Client.Editor
                 roadRenderer,
                 motionState,
                 laneMaterial,
+                side: 1,
+                useRoadRelativeProjection: true
+            );
+            CreateRoadEdgeLine(
+                root,
+                "RoadEdgeLeftLine",
+                roadRenderer,
+                motionState,
+                edgeLineMaterial,
+                side: -1
+            );
+            CreateRoadEdgeLine(
+                root,
+                "RoadEdgeRightLine",
+                roadRenderer,
+                motionState,
+                edgeLineMaterial,
                 side: 1
             );
 
@@ -145,16 +168,25 @@ namespace NewTrip.Client.Editor
 
             EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
 
+            if (!HasRequiredRoadOnlyCaptureObjects())
+            {
+                Debug.LogWarning("RoadOnlyTest scene is missing V2 road-edge/yellow-line objects. Refreshing scene before capture.");
+                CreateRoadOnlyTestScene();
+                EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
+            }
+
             Camera camera = Camera.main;
             RoadMotionState motionState = Object.FindAnyObjectByType<RoadMotionState>(FindObjectsInactive.Exclude);
             Pseudo3DRoadRenderer roadRenderer = GameObject.Find("RoadMesh")?.GetComponent<Pseudo3DRoadRenderer>();
             Pseudo3DRoadRenderer crackRenderer = GameObject.Find("RoadCrackDetailMesh")?.GetComponent<Pseudo3DRoadRenderer>();
             LaneMarkingRenderer leftLaneRenderer = GameObject.Find("LaneYellowLeftMesh")?.GetComponent<LaneMarkingRenderer>();
             LaneMarkingRenderer rightLaneRenderer = GameObject.Find("LaneYellowRightMesh")?.GetComponent<LaneMarkingRenderer>();
+            LaneMarkingRenderer leftEdgeRenderer = GameObject.Find("RoadEdgeLeftLine")?.GetComponent<LaneMarkingRenderer>();
+            LaneMarkingRenderer rightEdgeRenderer = GameObject.Find("RoadEdgeRightLine")?.GetComponent<LaneMarkingRenderer>();
 
-            if (camera == null || motionState == null || roadRenderer == null || leftLaneRenderer == null || rightLaneRenderer == null)
+            if (camera == null || motionState == null || roadRenderer == null || leftLaneRenderer == null || rightLaneRenderer == null || leftEdgeRenderer == null || rightEdgeRenderer == null)
             {
-                Debug.LogError("RoadOnlyTest capture failed. Expected one camera, one motion state, one road renderer, and two yellow-line renderers.");
+                Debug.LogError("RoadOnlyTest capture failed. Expected camera, motion state, road renderer, two yellow-line renderers, and two road-edge renderers.");
                 return;
             }
 
@@ -177,52 +209,68 @@ namespace NewTrip.Client.Editor
                 "RoadOnly_SingleYellowLine_CaptureMaterial",
                 LoadTexture(RoadSurfaceSupportImportSettings.LaneAssetPath)
             );
+            Material edgeLineMaterial = CreateSolidMaterial(
+                "RoadOnly_WhiteEdgeLine_CaptureMaterial",
+                new Color(0.96f, 0.82f, 0.68f, 0.88f)
+            );
             leftLaneRenderer.SetMaterial(yellowLineMaterial);
             rightLaneRenderer.SetMaterial(yellowLineMaterial);
+            leftEdgeRenderer.SetMaterial(edgeLineMaterial);
+            rightEdgeRenderer.SetMaterial(edgeLineMaterial);
             LogTexture("RoadOnly capture yellow line", yellowLineMaterial);
+            LogTexture("RoadOnly capture edge line", edgeLineMaterial);
             roadRenderer.RebuildMesh();
             crackRenderer?.RebuildMesh();
             leftLaneRenderer.RebuildMesh();
             rightLaneRenderer.RebuildMesh();
+            leftEdgeRenderer.RebuildMesh();
+            rightEdgeRenderer.RebuildMesh();
 
             string screenshotOutputPath = GetScreenshotOutputPath();
             Directory.CreateDirectory(screenshotOutputPath);
 
-            roadRenderer.textureOffset = 0f;
-            leftLaneRenderer.textureOffset = 0f;
-            rightLaneRenderer.textureOffset = 0f;
-            motionState.SetVisualDistanceForReview(0f);
-            roadRenderer.RebuildMesh();
-            crackRenderer?.RebuildMesh();
-            leftLaneRenderer.RebuildMesh();
-            rightLaneRenderer.RebuildMesh();
-            Texture2D stillFrame = RenderCamera(camera);
-            WritePng(stillFrame, screenshotOutputPath, "road_only_still.png");
-
-            motionState.SetVisualDistanceForReview(motionState.VisualSpeedMetersPerSecond * 10f);
-            roadRenderer.RefreshMotionForReview();
-            crackRenderer?.RefreshMotionForReview();
-            leftLaneRenderer.RefreshMotionForReview();
-            rightLaneRenderer.RefreshMotionForReview();
-            Texture2D motionFrame = RenderCamera(camera);
-            WritePng(motionFrame, screenshotOutputPath, "road_only_10s_motion.png");
-
-            roadRenderer.textureOffset = 0f;
-            leftLaneRenderer.textureOffset = 0f;
-            rightLaneRenderer.textureOffset = 0f;
-            motionState.SetVisualDistanceForReview(0f);
-            roadRenderer.RebuildMesh();
-            crackRenderer?.RebuildMesh();
-            leftLaneRenderer.RebuildMesh();
-            rightLaneRenderer.RebuildMesh();
-            RenderCropToPng(camera, screenshotOutputPath, "road_only_lane_horizon_closeup.png", new RectInt(420, 860, 240, 300));
-            RenderCropToPng(camera, screenshotOutputPath, "road_only_road_bottom_closeup.png", new RectInt(90, 80, 900, 420));
-
-            Object.DestroyImmediate(stillFrame);
-            Object.DestroyImmediate(motionFrame);
+            CaptureRoadOnlyVariant(
+                camera,
+                screenshotOutputPath,
+                "road_only_a_viewport_depth_yellow",
+                writeLegacyNames: false,
+                useRoadRelativeYellow: false,
+                motionState,
+                roadRenderer,
+                crackRenderer,
+                leftLaneRenderer,
+                rightLaneRenderer,
+                leftEdgeRenderer,
+                rightEdgeRenderer
+            );
+            CaptureRoadOnlyVariant(
+                camera,
+                screenshotOutputPath,
+                "road_only_b_road_relative_yellow_edges",
+                writeLegacyNames: true,
+                useRoadRelativeYellow: true,
+                motionState,
+                roadRenderer,
+                crackRenderer,
+                leftLaneRenderer,
+                rightLaneRenderer,
+                leftEdgeRenderer,
+                rightEdgeRenderer
+            );
             AssetDatabase.Refresh();
 
             Debug.Log("Captured RoadOnlyTest screenshots to: " + screenshotOutputPath);
+        }
+
+        private static bool HasRequiredRoadOnlyCaptureObjects()
+        {
+            return Camera.main != null
+                && Object.FindAnyObjectByType<RoadMotionState>(FindObjectsInactive.Exclude) != null
+                && GameObject.Find("RoadMesh")?.GetComponent<Pseudo3DRoadRenderer>() != null
+                && GameObject.Find("LaneYellowLeftMesh")?.GetComponent<LaneMarkingRenderer>() != null
+                && GameObject.Find("LaneYellowRightMesh")?.GetComponent<LaneMarkingRenderer>() != null
+                && GameObject.Find("RoadEdgeLeftLine")?.GetComponent<LaneMarkingRenderer>() != null
+                && GameObject.Find("RoadEdgeRightLine")?.GetComponent<LaneMarkingRenderer>() != null;
         }
 
         public static void CreateAndCaptureRoadOnlyTest()
@@ -237,7 +285,8 @@ namespace NewTrip.Client.Editor
             Pseudo3DRoadRenderer roadRenderer,
             RoadMotionState motionState,
             Material material,
-            int side
+            int side,
+            bool useRoadRelativeProjection
         )
         {
             GameObject laneObject = CreateChild(root, objectName);
@@ -245,6 +294,58 @@ namespace NewTrip.Client.Editor
             laneRenderer.roadRenderer = roadRenderer;
             laneRenderer.motionState = motionState;
             laneRenderer.sliceCount = 72;
+            ConfigureYellowLine(laneRenderer, side, useRoadRelativeProjection);
+            laneRenderer.SetMaterial(material);
+            SetRendererOrder(laneObject, 20);
+            laneRenderer.RebuildMesh();
+            return laneRenderer;
+        }
+
+        private static LaneMarkingRenderer CreateRoadEdgeLine(
+            GameObject root,
+            string objectName,
+            Pseudo3DRoadRenderer roadRenderer,
+            RoadMotionState motionState,
+            Material material,
+            int side
+        )
+        {
+            GameObject edgeObject = CreateChild(root, objectName);
+            LaneMarkingRenderer edgeRenderer = edgeObject.AddComponent<LaneMarkingRenderer>();
+            edgeRenderer.roadRenderer = roadRenderer;
+            edgeRenderer.motionState = motionState;
+            edgeRenderer.sliceCount = 72;
+            ConfigureRoadEdgeLine(edgeRenderer, side);
+            edgeRenderer.SetMaterial(material);
+            SetRendererOrder(edgeObject, 19);
+            edgeRenderer.RebuildMesh();
+            return edgeRenderer;
+        }
+
+        private static void ConfigureYellowLine(LaneMarkingRenderer laneRenderer, int side, bool useRoadRelativeProjection)
+        {
+            laneRenderer.textureUMin = 0f;
+            laneRenderer.textureUMax = 1f;
+            laneRenderer.textureRepeat = 12.5f;
+            laneRenderer.textureMetersPerRepeat = 18f;
+            laneRenderer.useDepthAwareMotion = true;
+            laneRenderer.useHorizonFade = true;
+            laneRenderer.horizonFadeStartDepth = 0.55f;
+            laneRenderer.horizonAlpha = 0.01f;
+            laneRenderer.nearTint = Color.white;
+            laneRenderer.farTint = new Color(1f, 0.74f, 0.42f, 1f);
+
+            if (useRoadRelativeProjection)
+            {
+                laneRenderer.useRoadRelativeWidth = true;
+                laneRenderer.useDepthViewportWidth = false;
+                laneRenderer.laneWidthRoadRatio = 0.0125f;
+                laneRenderer.minLaneHalfWidth = 0.0012f;
+                laneRenderer.useDepthViewportCenterOffset = false;
+                laneRenderer.centerOffsetRoadRatio = side * 0.032f;
+                return;
+            }
+
             laneRenderer.useRoadRelativeWidth = false;
             laneRenderer.useDepthViewportWidth = true;
             laneRenderer.nearLaneHalfWidthViewport = 0.0078f;
@@ -255,20 +356,124 @@ namespace NewTrip.Client.Editor
             laneRenderer.nearCenterOffsetViewport = side * 0.014f;
             laneRenderer.farCenterOffsetViewport = side * 0.0017f;
             laneRenderer.centerOffsetDepthCurve = 1f;
-            laneRenderer.textureUMin = 0f;
-            laneRenderer.textureUMax = 1f;
-            laneRenderer.textureRepeat = 12.5f;
-            laneRenderer.textureMetersPerRepeat = 18f;
-            laneRenderer.useDepthAwareMotion = true;
-            laneRenderer.useHorizonFade = true;
-            laneRenderer.horizonFadeStartDepth = 0.58f;
-            laneRenderer.horizonAlpha = 0.015f;
-            laneRenderer.nearTint = Color.white;
-            laneRenderer.farTint = new Color(1f, 0.76f, 0.48f, 1f);
-            laneRenderer.SetMaterial(material);
-            SetRendererOrder(laneObject, 20);
-            laneRenderer.RebuildMesh();
-            return laneRenderer;
+            laneRenderer.centerOffsetRoadRatio = 0f;
+        }
+
+        private static void ConfigureRoadEdgeLine(LaneMarkingRenderer edgeRenderer, int side)
+        {
+            edgeRenderer.useRoadRelativeWidth = true;
+            edgeRenderer.useDepthViewportWidth = false;
+            edgeRenderer.laneWidthRoadRatio = 0.0065f;
+            edgeRenderer.minLaneHalfWidth = 0.0011f;
+            edgeRenderer.useDepthViewportCenterOffset = false;
+            edgeRenderer.centerOffsetRoadRatio = side * 0.86f;
+            edgeRenderer.textureUMin = 0f;
+            edgeRenderer.textureUMax = 1f;
+            edgeRenderer.textureRepeat = 1f;
+            edgeRenderer.textureMetersPerRepeat = 200f;
+            edgeRenderer.useDepthAwareMotion = true;
+            edgeRenderer.useHorizonFade = true;
+            edgeRenderer.horizonFadeStartDepth = 0.55f;
+            edgeRenderer.horizonAlpha = 0.02f;
+            edgeRenderer.nearTint = new Color(1f, 0.91f, 0.82f, 0.92f);
+            edgeRenderer.farTint = new Color(1f, 0.78f, 0.64f, 0.76f);
+        }
+
+        private static void CaptureRoadOnlyVariant(
+            Camera camera,
+            string screenshotOutputPath,
+            string prefix,
+            bool writeLegacyNames,
+            bool useRoadRelativeYellow,
+            RoadMotionState motionState,
+            Pseudo3DRoadRenderer roadRenderer,
+            Pseudo3DRoadRenderer crackRenderer,
+            LaneMarkingRenderer leftLaneRenderer,
+            LaneMarkingRenderer rightLaneRenderer,
+            LaneMarkingRenderer leftEdgeRenderer,
+            LaneMarkingRenderer rightEdgeRenderer
+        )
+        {
+            ConfigureYellowLine(leftLaneRenderer, side: -1, useRoadRelativeProjection: useRoadRelativeYellow);
+            ConfigureYellowLine(rightLaneRenderer, side: 1, useRoadRelativeProjection: useRoadRelativeYellow);
+            ConfigureRoadEdgeLine(leftEdgeRenderer, side: -1);
+            ConfigureRoadEdgeLine(rightEdgeRenderer, side: 1);
+            ResetMotionOffsets(roadRenderer, leftLaneRenderer, rightLaneRenderer, leftEdgeRenderer, rightEdgeRenderer);
+            motionState.SetVisualDistanceForReview(0f);
+            RebuildAll(roadRenderer, crackRenderer, leftLaneRenderer, rightLaneRenderer, leftEdgeRenderer, rightEdgeRenderer);
+
+            Texture2D stillFrame = RenderCamera(camera);
+            WritePng(stillFrame, screenshotOutputPath, prefix + "_still.png");
+
+            if (writeLegacyNames)
+            {
+                WritePng(stillFrame, screenshotOutputPath, "road_only_still.png");
+            }
+
+            motionState.SetVisualDistanceForReview(motionState.VisualSpeedMetersPerSecond * 10f);
+            RefreshAll(roadRenderer, crackRenderer, leftLaneRenderer, rightLaneRenderer, leftEdgeRenderer, rightEdgeRenderer);
+            Texture2D motionFrame = RenderCamera(camera);
+            WritePng(motionFrame, screenshotOutputPath, prefix + "_10s_motion.png");
+
+            if (writeLegacyNames)
+            {
+                WritePng(motionFrame, screenshotOutputPath, "road_only_10s_motion.png");
+            }
+
+            ResetMotionOffsets(roadRenderer, leftLaneRenderer, rightLaneRenderer, leftEdgeRenderer, rightEdgeRenderer);
+            motionState.SetVisualDistanceForReview(0f);
+            RebuildAll(roadRenderer, crackRenderer, leftLaneRenderer, rightLaneRenderer, leftEdgeRenderer, rightEdgeRenderer);
+            RenderCropToPng(camera, screenshotOutputPath, prefix + "_lane_horizon_closeup.png", new RectInt(420, 860, 240, 300));
+            RenderCropToPng(camera, screenshotOutputPath, prefix + "_road_bottom_closeup.png", new RectInt(90, 80, 900, 420));
+
+            if (writeLegacyNames)
+            {
+                RenderCropToPng(camera, screenshotOutputPath, "road_only_lane_horizon_closeup.png", new RectInt(420, 860, 240, 300));
+                RenderCropToPng(camera, screenshotOutputPath, "road_only_road_bottom_closeup.png", new RectInt(90, 80, 900, 420));
+            }
+
+            Object.DestroyImmediate(stillFrame);
+            Object.DestroyImmediate(motionFrame);
+        }
+
+        private static void ResetMotionOffsets(Pseudo3DRoadRenderer roadRenderer, params LaneMarkingRenderer[] lineRenderers)
+        {
+            roadRenderer.textureOffset = 0f;
+
+            foreach (LaneMarkingRenderer renderer in lineRenderers)
+            {
+                renderer.textureOffset = 0f;
+            }
+        }
+
+        private static void RebuildAll(
+            Pseudo3DRoadRenderer roadRenderer,
+            Pseudo3DRoadRenderer crackRenderer,
+            params LaneMarkingRenderer[] lineRenderers
+        )
+        {
+            roadRenderer.RebuildMesh();
+            crackRenderer?.RebuildMesh();
+
+            foreach (LaneMarkingRenderer renderer in lineRenderers)
+            {
+                renderer.RebuildMesh();
+            }
+        }
+
+        private static void RefreshAll(
+            Pseudo3DRoadRenderer roadRenderer,
+            Pseudo3DRoadRenderer crackRenderer,
+            params LaneMarkingRenderer[] lineRenderers
+        )
+        {
+            roadRenderer.RefreshMotionForReview();
+            crackRenderer?.RefreshMotionForReview();
+
+            foreach (LaneMarkingRenderer renderer in lineRenderers)
+            {
+                renderer.RefreshMotionForReview();
+            }
         }
 
         private static Camera CreateCamera()
@@ -331,6 +536,22 @@ namespace NewTrip.Client.Editor
             };
             material.SetColor("_Color", Color.white);
             material.SetInt("_Cull", (int)UnityEngine.Rendering.CullMode.Off);
+            return material;
+        }
+
+        private static Material CreateSolidMaterial(string materialName, Color color)
+        {
+            Texture2D texture = new Texture2D(1, 1, TextureFormat.RGBA32, mipChain: false)
+            {
+                name = materialName + "_Texture",
+                filterMode = FilterMode.Point,
+                wrapMode = TextureWrapMode.Repeat
+            };
+            texture.SetPixel(0, 0, Color.white);
+            texture.Apply(updateMipmaps: false, makeNoLongerReadable: false);
+
+            Material material = CreateTextureMaterial(materialName, texture);
+            material.SetColor("_Color", color);
             return material;
         }
 

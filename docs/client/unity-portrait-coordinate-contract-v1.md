@@ -120,6 +120,8 @@ Review-only / not production-ready:
 
 Before a Unity composite is treated as reviewable:
 
+- Placeholder-only mode passes first: pure sky, procedural road, simple lane, simple car, no real sprites.
+- `RoadDebugOverlay` is visible or has been checked in the same scene.
 - Game view is tested in a portrait phone frame.
 - Road is visible from car area to horizon.
 - Car sits on the road, not on the background image.

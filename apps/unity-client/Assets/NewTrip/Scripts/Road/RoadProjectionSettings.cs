@@ -3,6 +3,13 @@ using UnityEngine;
 
 namespace NewTrip.Client.Road
 {
+    public enum RoadProjectionPreset
+    {
+        ContractDefault,
+        BigSurPrototype,
+        WideDebug
+    }
+
     [Serializable]
     public sealed class RoadProjectionSettings
     {
@@ -23,6 +30,39 @@ namespace NewTrip.Client.Road
 
         [Range(0f, 1f)]
         public float centerX = 0.5f;
+
+        public void ApplyPreset(RoadProjectionPreset preset)
+        {
+            switch (preset)
+            {
+                case RoadProjectionPreset.BigSurPrototype:
+                    centerX = 0.5f;
+                    horizonY = 0.52f;
+                    bottomY = -0.04f;
+                    nearHalfWidth = 0.84f;
+                    horizonHalfWidth = 0.028f;
+                    depthCurve = 1.85f;
+                    break;
+
+                case RoadProjectionPreset.WideDebug:
+                    centerX = 0.5f;
+                    horizonY = 0.54f;
+                    bottomY = -0.05f;
+                    nearHalfWidth = 0.86f;
+                    horizonHalfWidth = 0.035f;
+                    depthCurve = 1.85f;
+                    break;
+
+                default:
+                    centerX = 0.5f;
+                    horizonY = 0.56f;
+                    bottomY = 0.02f;
+                    nearHalfWidth = 0.64f;
+                    horizonHalfWidth = 0.025f;
+                    depthCurve = 1.65f;
+                    break;
+            }
+        }
 
         public RoadProjectionSample Sample(float depth01, float renderWidth, float renderHeight)
         {

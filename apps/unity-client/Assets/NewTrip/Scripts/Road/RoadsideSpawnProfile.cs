@@ -14,6 +14,8 @@ namespace NewTrip.Client.Road
     public sealed class RoadsideSpawnProfile : ScriptableObject
     {
         public Vector2 spawnIntervalSeconds = new Vector2(0.32f, 0.78f);
+        public Vector2 spawnSpacingMeters = new Vector2(10f, 24f);
+        public float depthTravelMeters = 58f;
         public float depthMoveRate = 0.32f;
         public List<RoadsideSpawnEntry> entries = new List<RoadsideSpawnEntry>();
 
@@ -28,28 +30,68 @@ namespace NewTrip.Client.Road
 
             for (int i = 0; i < entries.Count; i++)
             {
-                totalWeight += Mathf.Max(0f, entries[i].rarityWeight);
+                RoadsideSpawnEntry entry = entries[i];
+
+                if (entry == null)
+                {
+                    continue;
+                }
+
+                totalWeight += Mathf.Max(0f, entry.rarityWeight);
             }
 
             if (totalWeight <= 0f)
             {
-                return entries[0];
+                return FirstValidEntry();
             }
 
-            double roll = random.NextDouble() * totalWeight;
+            double roll = (random ?? new System.Random()).NextDouble() * totalWeight;
             float cursor = 0f;
 
             for (int i = 0; i < entries.Count; i++)
             {
-                cursor += Mathf.Max(0f, entries[i].rarityWeight);
+                RoadsideSpawnEntry entry = entries[i];
+
+                if (entry == null)
+                {
+                    continue;
+                }
+
+                cursor += Mathf.Max(0f, entry.rarityWeight);
 
                 if (roll <= cursor)
+                {
+                    return entry;
+                }
+            }
+
+            return LastValidEntry();
+        }
+
+        private RoadsideSpawnEntry FirstValidEntry()
+        {
+            for (int i = 0; i < entries.Count; i++)
+            {
+                if (entries[i] != null)
                 {
                     return entries[i];
                 }
             }
 
-            return entries[entries.Count - 1];
+            return null;
+        }
+
+        private RoadsideSpawnEntry LastValidEntry()
+        {
+            for (int i = entries.Count - 1; i >= 0; i--)
+            {
+                if (entries[i] != null)
+                {
+                    return entries[i];
+                }
+            }
+
+            return null;
         }
     }
 

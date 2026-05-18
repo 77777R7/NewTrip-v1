@@ -1,0 +1,79 @@
+{
+  "generated_at": "2026-05-18T00:39:00-07:00",
+  "source": "PixelLab MCP create_map_object",
+  "usage": "Draft roadside map objects only. Outputs must pass manifest, alpha, pivot, and Unity screenshot QA before runtime use.",
+  "jobs": [
+    {
+      "id": "pixellab_sign_california_1_v1",
+      "object_id": "78643215-335b-45c6-a36a-e76eff360196",
+      "status": "review",
+      "output_file": "pixellab_sign_california_1_v1.png",
+      "dimensions": [256, 384],
+      "has_alpha": true,
+      "qa_note": "Good transparent silhouette; text/content is not final. Prefer blank sign body plus Unity text overlay."
+    },
+    {
+      "id": "pixellab_sign_big_sur_15_v1",
+      "object_id": "89cbd131-fcc4-4099-bbb8-0c09f5a846d0",
+      "status": "reject_text",
+      "output_file": "pixellab_sign_big_sur_15_v1.png",
+      "dimensions": [256, 384],
+      "has_alpha": true,
+      "qa_note": "Generated extra unreadable text. Regenerate as blank distance sign; add readable copy in Unity."
+    },
+    {
+      "id": "pixellab_roadside_bush_orange_v1",
+      "object_id": "d94f2edd-7ca8-4fbc-9bf1-dd9a8392b1b1",
+      "status": "review",
+      "output_file": "pixellab_roadside_bush_orange_v1.png",
+      "dimensions": [192, 160],
+      "has_alpha": true,
+      "qa_note": "Good draft for manifest and bottom-center pivot review."
+    },
+    {
+      "id": "pixellab_sign_green_blank_v1",
+      "object_id": "1a5c73c5-1e41-4a41-af4e-fd85af28d8bd",
+      "status": "review",
+      "output_file": "pixellab_sign_green_blank_v1.png",
+      "dimensions": [256, 384],
+      "has_alpha": true,
+      "qa_note": "Good blank sign body for Unity text overlay."
+    },
+    {
+      "id": "pixellab_roadside_rock_cluster_v1",
+      "object_id": "922faa94-b5de-4b36-ae08-6af850db1cf8",
+      "status": "review",
+      "output_file": "pixellab_roadside_rock_cluster_v1.png",
+      "dimensions": [256, 160],
+      "has_alpha": true,
+      "qa_note": "Good single-object rock cluster; bottom contact should be checked in Unity."
+    },
+    {
+      "id": "pixellab_guardrail_segment_v1",
+      "object_id": "6a866ff6-8c12-4a9a-beae-ac25a91e4c99",
+      "status": "reject_background",
+      "output_file": "pixellab_guardrail_segment_v1.png",
+      "dimensions": [400, 160],
+      "has_alpha": true,
+      "qa_note": "Rejected for scenic sun/background band; not a clean isolated roadside object."
+    },
+    {
+      "id": "pixellab_white_reflector_post_v1",
+      "object_id": "14344383-84c2-443d-acc5-a56142557e4b",
+      "status": "review",
+      "output_file": "pixellab_white_reflector_post_v1.png",
+      "dimensions": [128, 256],
+      "has_alpha": true,
+      "qa_note": "Readable but more isometric than the current pack; check camera fit before runtime use."
+    },
+    {
+      "id": "pixellab_wood_arrow_sign_v1",
+      "object_id": "40c5379e-703e-444f-9534-744109e14986",
+      "status": "review",
+      "output_file": "pixellab_wood_arrow_sign_v1.png",
+      "dimensions": [256, 224],
+      "has_alpha": true,
+      "qa_note": "Good blank wooden arrow sign for side-object review."
+    }
+  ]
+}

@@ -4,6 +4,8 @@ This document defines the Unity client prototype for NewTrip's forward road view
 
 The production driving screen must not rely on one full-screen driving illustration. Full-frame images are allowed for route cards, Travel Reports, loading cards, scenic landmark reveals, and photo cards. The live driving view is assembled from code-generated road geometry, repeatable textures, sprites, and background layers.
 
+For the current research-backed implementation guidance, start with `docs/client/newtrip-pseudo3d-driving-knowledge-base-v1.md`. It is the master entrypoint for motion naturalness, road material review, lane cadence, background layering, sprite spawning, and mobile performance rules.
+
 ## Goal
 
 Build a playable forward road view for the V1 tutorial route that supports:
@@ -86,12 +88,16 @@ Responsibilities:
 
 Generates the road mesh or strip stack.
 
-Recommended V1 approach:
+Prototype-only starting approach:
 
 - Use an orthographic portrait camera.
 - Generate a trapezoid road mesh from horizontal slices.
-- Use UV scrolling for road texture movement.
-- Draw lane markings as a separate center strip layer so markings can animate independently.
+- Use UV scrolling only for the earliest RoadOnlyTest placeholder pass.
+- Draw lane markings as a separate center strip layer so markings can be replaced without changing asphalt art.
+
+Research update:
+
+`docs/client/pseudo3d-road-renderer-mechanics-kb-v1.md` is now the renderer mechanics source of truth for the next road pass. The long-term road renderer should be driven by a shared visual distance state, road-relative lane width, depth-addressed road/lane sampling, and horizon fade/tint. Uniform UV scrolling is allowed only as a temporary prototype baseline because it can create a flat conveyor-belt effect in motion.
 
 Projection model:
 
@@ -123,7 +129,7 @@ uv_scroll += visual_speed * delta_time
 visual_speed = clamp(server_speed_kmph / 72, 0, 1.35)
 ```
 
-`visual_speed` affects animation only. Server state still determines actual progress.
+This is a prototype baseline only. `visual_speed` affects animation only. Server state still determines actual progress. The next implementation should replace independent scroll timers with a shared `RoadMotionState.visualDistanceM` consumed by road, lane, shoulder, roadside props, signs, and weather.
 
 ### `LaneMarkingRenderer`
 
@@ -133,7 +139,8 @@ Recommended V1 approach:
 
 - Use a narrow repeated lane marking strip.
 - Project it with the same road slice math.
-- Animate UV offset faster than the base asphalt.
+- Derive UV/dash cadence from the same visual distance as the asphalt.
+- Scale lane width from projected road width instead of using fixed screen width.
 - Keep the lane strip separate from the asphalt so boost, night, rain, and road variants can reuse the same geometry.
 
 ### `CarRearController`
@@ -303,6 +310,43 @@ Segment transitions should be crossfades of visual packs, not hard cuts:
 - side object spawn table swap;
 - weather overlay update;
 - car remains stable.
+
+## Unity Visual Fix Sprint
+
+Before reviewing generated art, the Unity prototype must pass a placeholder-only composite:
+
+```text
+pure-color sky
+procedural road mesh
+road shoulder strips
+simple lane strip
+fixed block/rear car
+no real background layers
+no real roadside sprites
+no auto-spawned signs
+no weather overlay
+debug overlay enabled
+```
+
+If this view looks wrong, do not solve it by generating new art. Fix projection, camera, car anchor, lane width, and road fade first.
+
+`RoadDebugOverlay` should be available in the prototype scene and show:
+
+- horizon line;
+- car anchor;
+- road bounds at `depth = 1.0, 0.75, 0.5, 0.25, 0.0`;
+- roadside/sign spawn points;
+- HUD safe area.
+
+The first route segment must use this policy:
+
+```text
+0-35 km coastal_cliffs: sky allowed, far horizon band optional, bridge disabled
+35-70 km bridge_coast: bridge runtime cutout allowed
+65-95 km boardwalk_approach: boardwalk runtime pack allowed
+```
+
+Imported generated sheets must go through `docs/client/unity-asset-extraction-rules-v1.md` before being treated as Unity review sprites.
 
 ## Art Requirements
 

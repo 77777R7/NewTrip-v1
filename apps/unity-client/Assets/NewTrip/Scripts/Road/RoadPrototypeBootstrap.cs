@@ -2,16 +2,38 @@ using UnityEngine;
 
 namespace NewTrip.Client.Road
 {
+    public enum RoadPrototypeVisualMode
+    {
+        PlaceholderOnly,
+        ImportedPrototypeAssets
+    }
+
     public sealed class RoadPrototypeBootstrap : MonoBehaviour
     {
         private const float RenderWidth = 5.625f;
         private const float RenderHeight = 10f;
 
         public bool buildOnAwake = true;
+        public RoadPrototypeVisualMode visualMode = RoadPrototypeVisualMode.PlaceholderOnly;
+        public RoadVisualSegmentKey activeSegment = RoadVisualSegmentKey.CoastalCliffsSunset;
+        public RoadProjectionPreset projectionPreset = RoadProjectionPreset.BigSurPrototype;
+        public bool showDebugOverlay = true;
+        public bool enableFarBackgroundLayer;
+        public bool enableRoadsideSpawner;
+        public bool enableSignSpawner;
+        public bool enableWeatherOverlay;
 
         private void Awake()
         {
             if (Application.isPlaying && buildOnAwake)
+            {
+                BuildPrototype();
+            }
+        }
+
+        private void Start()
+        {
+            if (Application.isPlaying && buildOnAwake && transform.Find("RoadSceneRoot") == null)
             {
                 BuildPrototype();
             }
@@ -25,48 +47,79 @@ namespace NewTrip.Client.Road
             GameObject root = CreateChild(gameObject, "RoadSceneRoot");
             root.transform.localPosition = Vector3.zero;
 
+            GameObject motionObject = CreateChild(root, "RoadMotionState");
+            RoadMotionState motionState = motionObject.AddComponent<RoadMotionState>();
+            motionState.serverSpeedKmph = 72f;
+            motionState.visualSpeedMultiplier = 1f;
+
             Vector2 centerPivot = new Vector2(0.5f, 0.5f);
             Vector2 bottomCenterPivot = new Vector2(0.5f, 0f);
 
-            Sprite skySprite = PrototypeCompositeAssets.LoadSprite("sky_sunset", CreateSkyTexture(), 160f, pivot: centerPivot);
-            Sprite farSprite = PrototypeCompositeAssets.LoadSprite("far_coast_cutout", CreateFarBackgroundTexture(), 160f, pivot: centerPivot);
-            Sprite bridgeSprite = PrototypeCompositeAssets.LoadSprite("bridge_midground_cutout", CreateFarBackgroundTexture(), 160f, pivot: centerPivot);
-            Sprite carSprite = PrototypeCompositeAssets.LoadSprite("car_rear_player", CreateCarTexture(), 256f, pivot: bottomCenterPivot);
-            Sprite rockSprite = PrototypeCompositeAssets.LoadSprite("roadside_rock", CreateRockTexture(), 256f, pivot: bottomCenterPivot);
-            Sprite bushSprite = PrototypeCompositeAssets.LoadSprite("roadside_bush_flowers", CreatePineTexture(), 256f, pivot: bottomCenterPivot);
-            Sprite cliffSprite = PrototypeCompositeAssets.LoadSprite("roadside_cliff_edge", CreateRockTexture(), 256f, pivot: bottomCenterPivot);
-            Sprite pineSprite = PrototypeCompositeAssets.LoadSprite("roadside_pine", CreatePineTexture(), 256f, pivot: bottomCenterPivot);
-            Sprite guardrailSprite = PrototypeCompositeAssets.LoadSprite("roadside_guardrail", CreateGuardrailTexture(), 256f, pivot: bottomCenterPivot);
-            Sprite signSprite = PrototypeCompositeAssets.LoadSprite("sign_scenic_overlook", CreateSignTexture(), 256f, pivot: bottomCenterPivot);
-            Sprite bigSurSignSprite = PrototypeCompositeAssets.LoadSprite("sign_big_sur_15", CreateSignTexture(), 256f, pivot: bottomCenterPivot);
-            Sprite restStopSignSprite = PrototypeCompositeAssets.LoadSprite("sign_rest_stop", CreateSignTexture(), 256f, pivot: bottomCenterPivot);
-            Sprite woodArrowSignSprite = PrototypeCompositeAssets.LoadSprite("sign_wood_arrow", CreateSignTexture(), 256f, pivot: bottomCenterPivot);
-            Sprite hazeSprite = PrototypeCompositeAssets.LoadSprite("weather_haze_clouds", CreateHazeTexture(), 192f);
-            Sprite rainSprite = PrototypeCompositeAssets.LoadSprite("weather_rain_streaks", CreateRainTexture(), 192f);
-            Sprite fogSprite = PrototypeCompositeAssets.LoadSprite("weather_sun_glow", CreateFogTexture(), 192f);
+            Sprite skySprite = LoadSpriteForMode("sky_sunset", CreateSkyTexture(), 160f, centerPivot);
+            Sprite farSprite = LoadSpriteForMode("far_coast_cutout", CreateFarBackgroundTexture(), 160f, centerPivot);
+            Sprite bridgeSprite = LoadSpriteForMode("bridge_midground_cutout", CreateFarBackgroundTexture(), 160f, centerPivot);
+            Sprite carSprite = LoadSpriteForMode("car_rear_player", CreateCarTexture(), visualMode == RoadPrototypeVisualMode.PlaceholderOnly ? 48f : 256f, bottomCenterPivot);
+            Sprite rockSprite = LoadSpriteForMode("roadside_rock", CreateRockTexture(), 128f, bottomCenterPivot);
+            Sprite bushSprite = LoadSpriteForMode("roadside_bush_flowers", CreatePineTexture(), 128f, bottomCenterPivot);
+            Sprite cliffSprite = LoadSpriteForMode("roadside_cliff_edge", CreateRockTexture(), 128f, bottomCenterPivot);
+            Sprite pineSprite = LoadSpriteForMode("roadside_pine", CreatePineTexture(), 128f, bottomCenterPivot);
+            Sprite guardrailSprite = LoadSpriteForMode("roadside_guardrail", CreateGuardrailTexture(), 128f, bottomCenterPivot);
+            Sprite signSprite = LoadSpriteForMode("sign_scenic_overlook", CreateSignTexture(), 128f, bottomCenterPivot);
+            Sprite bigSurSignSprite = LoadSpriteForMode("sign_big_sur_15", CreateSignTexture(), 128f, bottomCenterPivot);
+            Sprite restStopSignSprite = LoadSpriteForMode("sign_rest_stop", CreateSignTexture(), 128f, bottomCenterPivot);
+            Sprite woodArrowSignSprite = LoadSpriteForMode("sign_wood_arrow", CreateSignTexture(), 128f, bottomCenterPivot);
+            Sprite hazeSprite = LoadSpriteForMode("weather_haze_clouds", CreateHazeTexture(), 192f, centerPivot);
+            Sprite rainSprite = LoadSpriteForMode("weather_rain_streaks", CreateRainTexture(), 192f, centerPivot);
+            Sprite fogSprite = LoadSpriteForMode("weather_sun_glow", CreateFogTexture(), 192f, centerPivot);
 
             Material roadMaterial = CreateMaterial(
                 "PrototypeRoadMaterial",
-                PrototypeCompositeAssets.LoadTexture("road_asphalt_tile", CreateRoadTexture(), TextureWrapMode.Repeat),
-                false
+                LoadTextureForMode("road_asphalt_runtime_tile_512", CreateRoadTexture(), TextureWrapMode.Repeat),
+                true
+            );
+            Material shoulderMaterial = CreateMaterial(
+                "PrototypeShoulderMaterial",
+                LoadTextureForMode("dirt_shoulder_strip", CreateShoulderTexture(), TextureWrapMode.Repeat),
+                true
             );
             Material laneMaterial = CreateMaterial(
                 "PrototypeLaneMaterial",
-                PrototypeCompositeAssets.LoadTexture("lane_center_yellow_strip", CreateLaneTexture(), TextureWrapMode.Repeat),
+                LoadTextureForMode("lane_yellow_single_runtime_strip", CreateLaneTexture(), TextureWrapMode.Repeat),
                 true
             );
+            LogTexture("Prototype road", roadMaterial);
+            LogTexture("Prototype shoulder", shoulderMaterial);
+            LogTexture("Prototype lane", laneMaterial);
 
             GameObject roadObject = CreateChild(root, "RoadMesh");
             Pseudo3DRoadRenderer roadRenderer = roadObject.AddComponent<Pseudo3DRoadRenderer>();
+            roadRenderer.motionState = motionState;
             roadRenderer.renderWidth = RenderWidth;
             roadRenderer.renderHeight = RenderHeight;
-            roadRenderer.projection.horizonY = 0.56f;
-            roadRenderer.projection.bottomY = 0.02f;
-            roadRenderer.projection.nearHalfWidth = 0.64f;
-            roadRenderer.projection.horizonHalfWidth = 0.025f;
-            roadRenderer.projection.depthCurve = 1.65f;
+            roadRenderer.projectionPreset = projectionPreset;
+            roadRenderer.applyProjectionPresetOnRebuild = true;
+            roadRenderer.textureUMin = 0f;
+            roadRenderer.textureUMax = 1f;
+            roadRenderer.useWidthBasedTextureU = true;
+            roadRenderer.asphaltTileWorldWidth = 1.45f;
+            roadRenderer.textureRepeat = 3.8f;
+            roadRenderer.textureMetersPerRepeat = 44f;
+            roadRenderer.useDepthAwareMotion = true;
+            roadRenderer.horizonFadeStartDepth = 0.58f;
+            roadRenderer.horizonAlpha = 0.035f;
+            roadRenderer.farTint = new Color(0.58f, 0.53f, 0.48f, 1f);
             roadRenderer.SetMaterial(roadMaterial);
+            SetRendererOrder(roadObject, 10);
             roadRenderer.RebuildMesh();
+
+            GameObject shoulderObject = CreateChild(root, "RoadShoulders");
+            RoadShoulderRenderer shoulderRenderer = shoulderObject.AddComponent<RoadShoulderRenderer>();
+            shoulderRenderer.roadRenderer = roadRenderer;
+            shoulderRenderer.motionState = motionState;
+            shoulderRenderer.textureMetersPerRepeat = 16f;
+            shoulderRenderer.SetMaterial(shoulderMaterial);
+            SetRendererOrder(shoulderObject, 8);
+            shoulderRenderer.RebuildMesh();
 
             GameObject skyLayer = CreateChild(root, "SkyLayer");
             SpriteRenderer skyRenderer = skyLayer.AddComponent<SpriteRenderer>();
@@ -87,21 +140,40 @@ namespace NewTrip.Client.Road
             backgroundController.skyLayer = skyRenderer;
             backgroundController.farBackgroundLayer = farRenderer;
             backgroundController.midgroundLandmarkLayer = bridgeRenderer;
+            backgroundController.activeSegment = activeSegment;
+            backgroundController.enforceDrivingLayerPolicy = true;
+            backgroundController.showFarBackground = enableFarBackgroundLayer || visualMode == RoadPrototypeVisualMode.ImportedPrototypeAssets;
+            backgroundController.showMidgroundLandmark = visualMode == RoadPrototypeVisualMode.ImportedPrototypeAssets && activeSegment == RoadVisualSegmentKey.BridgeCoastNight;
             backgroundController.farTint = new Color(1f, 1f, 1f, 0.78f);
             backgroundController.ApplyLayout();
 
-            GameObject laneObject = CreateChild(root, "LaneMarkingMesh");
-            LaneMarkingRenderer laneRenderer = laneObject.AddComponent<LaneMarkingRenderer>();
-            laneRenderer.roadRenderer = roadRenderer;
-            laneRenderer.SetMaterial(laneMaterial);
-            laneRenderer.RebuildMesh();
+            LaneMarkingRenderer leftLaneRenderer = CreateProjectedYellowLine(
+                root,
+                "LaneYellowLeftMesh",
+                roadRenderer,
+                motionState,
+                laneMaterial,
+                side: -1
+            );
+            CreateProjectedYellowLine(
+                root,
+                "LaneYellowRightMesh",
+                roadRenderer,
+                motionState,
+                laneMaterial,
+                side: 1
+            );
 
             GameObject sideRoot = CreateChild(root, "SideObjectRoot");
             GameObject sideSpawnerObject = CreateChild(root, "SideObjectSpawner");
             SideObjectSpawner sideSpawner = sideSpawnerObject.AddComponent<SideObjectSpawner>();
             sideSpawner.roadRenderer = roadRenderer;
+            sideSpawner.motionState = motionState;
             sideSpawner.objectRoot = sideRoot.transform;
             sideSpawner.profile = CreateRoadsideProfile(rockSprite, bushSprite, cliffSprite, pineSprite, guardrailSprite);
+            sideSpawner.useDistanceBasedMotion = true;
+            sideSpawner.seedInitialDistanceWindow = true;
+            sideSpawner.enabled = enableRoadsideSpawner;
 
             GameObject signRoot = CreateChild(root, "LandmarkSignRoot");
             GameObject signSpawnerObject = CreateChild(root, "LandmarkSignSpawner");
@@ -110,39 +182,52 @@ namespace NewTrip.Client.Road
             signSpawner.signRoot = signRoot.transform;
             signSpawner.placeholderSignSprite = signSprite;
             signSpawner.signSprites = new[] { signSprite, bigSurSignSprite, restStopSignSprite, woodArrowSignSprite };
+            signSpawner.enabled = enableSignSpawner;
 
             GameObject weatherObject = CreateChild(root, "WeatherOverlay");
             SpriteRenderer weatherRenderer = weatherObject.AddComponent<SpriteRenderer>();
+            weatherRenderer.sortingOrder = 60;
             WeatherOverlayRenderer weatherOverlay = weatherObject.AddComponent<WeatherOverlayRenderer>();
             weatherOverlay.roadRenderer = roadRenderer;
             weatherOverlay.overlayRenderer = weatherRenderer;
             weatherOverlay.hazeSprite = hazeSprite;
             weatherOverlay.rainSprite = rainSprite;
             weatherOverlay.fogSprite = fogSprite;
-            weatherOverlay.SetWeather("haze");
+            weatherOverlay.SetWeather(enableWeatherOverlay ? "haze" : "clear");
 
             GameObject carObject = CreateChild(root, "PlayerCar");
             SpriteRenderer carRenderer = carObject.AddComponent<SpriteRenderer>();
             carRenderer.sprite = carSprite;
+            carRenderer.sortingOrder = 50;
             CarRearController carController = carObject.AddComponent<CarRearController>();
             carController.roadRenderer = roadRenderer;
             carController.anchorViewport = new Vector2(0.5f, 0.105f);
-            carController.baseScale = 0.74f;
+            carController.baseScale = visualMode == RoadPrototypeVisualMode.PlaceholderOnly ? 1.05f : 0.74f;
 
             GameObject controllerObject = CreateChild(root, "RoadSceneController");
             RoadSceneController sceneController = controllerObject.AddComponent<RoadSceneController>();
+            sceneController.motionState = motionState;
             sceneController.roadRenderer = roadRenderer;
-            sceneController.laneMarkingRenderer = laneRenderer;
+            sceneController.laneMarkingRenderer = leftLaneRenderer;
             sceneController.carRearController = carController;
             sceneController.sideObjectSpawner = sideSpawner;
             sceneController.landmarkSignSpawner = signSpawner;
             sceneController.weatherOverlayRenderer = weatherOverlay;
+            sceneController.autoSpawnDemoSigns = enableSignSpawner;
+            sceneController.initialWeatherKey = enableWeatherOverlay ? "haze" : "clear";
+            sceneController.spawnForcedStopSignOnServerState = enableSignSpawner;
 
             GameObject adapterObject = CreateChild(root, "TripVisualStateAdapter");
             TripVisualStateAdapter adapter = adapterObject.AddComponent<TripVisualStateAdapter>();
             adapter.sceneController = sceneController;
 
             CreateChild(root, "HudRoot");
+
+            GameObject debugObject = CreateChild(root, "RoadDebugOverlay");
+            RoadDebugOverlay debugOverlay = debugObject.AddComponent<RoadDebugOverlay>();
+            debugOverlay.roadRenderer = roadRenderer;
+            debugOverlay.showGuides = showDebugOverlay;
+            debugOverlay.carAnchorViewport = carController.anchorViewport;
 
             camera.transform.position = new Vector3(0f, 0f, -10f);
             camera.transform.rotation = Quaternion.identity;
@@ -158,6 +243,55 @@ namespace NewTrip.Client.Road
             cameraController.targetHeight = RenderHeight;
             cameraController.clearColor = Color.black;
             cameraController.Apply();
+        }
+
+        private static void SetRendererOrder(GameObject target, int sortingOrder)
+        {
+            Renderer renderer = target.GetComponent<Renderer>();
+
+            if (renderer != null)
+            {
+                renderer.sortingOrder = sortingOrder;
+            }
+        }
+
+        private static LaneMarkingRenderer CreateProjectedYellowLine(
+            GameObject root,
+            string objectName,
+            Pseudo3DRoadRenderer roadRenderer,
+            RoadMotionState motionState,
+            Material material,
+            int side
+        )
+        {
+            GameObject laneObject = CreateChild(root, objectName);
+            LaneMarkingRenderer laneRenderer = laneObject.AddComponent<LaneMarkingRenderer>();
+            laneRenderer.roadRenderer = roadRenderer;
+            laneRenderer.motionState = motionState;
+            laneRenderer.sliceCount = 72;
+            laneRenderer.useRoadRelativeWidth = false;
+            laneRenderer.useDepthViewportWidth = true;
+            laneRenderer.nearLaneHalfWidthViewport = 0.0078f;
+            laneRenderer.farLaneHalfWidthViewport = 0.0008f;
+            laneRenderer.widthDepthCurve = 1f;
+            laneRenderer.minLaneHalfWidth = 0.0025f;
+            laneRenderer.useDepthViewportCenterOffset = true;
+            laneRenderer.nearCenterOffsetViewport = side * 0.014f;
+            laneRenderer.farCenterOffsetViewport = side * 0.0017f;
+            laneRenderer.centerOffsetDepthCurve = 1f;
+            laneRenderer.textureUMin = 0f;
+            laneRenderer.textureUMax = 1f;
+            laneRenderer.textureRepeat = 12.5f;
+            laneRenderer.textureMetersPerRepeat = 18f;
+            laneRenderer.useDepthAwareMotion = true;
+            laneRenderer.useHorizonFade = true;
+            laneRenderer.horizonFadeStartDepth = 0.58f;
+            laneRenderer.horizonAlpha = 0.015f;
+            laneRenderer.farTint = new Color(1f, 0.76f, 0.48f, 1f);
+            laneRenderer.SetMaterial(material);
+            SetRendererOrder(laneObject, 20);
+            laneRenderer.RebuildMesh();
+            return laneRenderer;
         }
 
         private Camera EnsureCamera()
@@ -180,6 +314,8 @@ namespace NewTrip.Client.Road
             ApplyHideFlags(profile);
 
             profile.spawnIntervalSeconds = new Vector2(0.16f, 0.42f);
+            profile.spawnSpacingMeters = new Vector2(8f, 18f);
+            profile.depthTravelMeters = 58f;
             profile.depthMoveRate = 0.34f;
             profile.entries.Add(new RoadsideSpawnEntry
             {
@@ -247,11 +383,11 @@ namespace NewTrip.Client.Road
 
         private Material CreateMaterial(string materialName, Texture2D texture, bool transparent)
         {
-            Shader shader = Shader.Find(transparent ? "Unlit/Transparent" : "Unlit/Texture");
+            Shader shader = Shader.Find("Sprites/Default");
 
             if (shader == null)
             {
-                shader = Shader.Find("Sprites/Default");
+                shader = Shader.Find(transparent ? "Unlit/Transparent" : "Unlit/Texture");
             }
 
             Material material = new Material(shader)
@@ -259,17 +395,59 @@ namespace NewTrip.Client.Road
                 name = materialName,
                 mainTexture = texture
             };
+            material.SetColor("_Color", Color.white);
+            material.SetInt("_Cull", (int)UnityEngine.Rendering.CullMode.Off);
             ApplyHideFlags(material);
 
             return material;
         }
 
-        private Sprite CreateSprite(string spriteName, Texture2D texture, float pixelsPerUnit)
+        private static void LogTexture(string label, Material material)
+        {
+            Texture texture = material != null ? material.mainTexture : null;
+
+            if (texture == null)
+            {
+                Debug.LogWarning(label + " texture loaded: <missing>");
+                return;
+            }
+
+            Debug.Log(
+                label + " texture loaded: " +
+                texture.name + ", " +
+                texture.width + "x" + texture.height + ", " +
+                "wrap=" + texture.wrapMode + ", " +
+                "filter=" + texture.filterMode
+            );
+        }
+
+        private Sprite LoadSpriteForMode(string resourceName, Texture2D placeholder, float pixelsPerUnit, Vector2 pivot)
+        {
+            if (visualMode == RoadPrototypeVisualMode.ImportedPrototypeAssets)
+            {
+                return PrototypeCompositeAssets.LoadSprite(resourceName, placeholder, pixelsPerUnit, TextureWrapMode.Clamp, pivot);
+            }
+
+            return CreateSprite(resourceName + "_placeholder", placeholder, pixelsPerUnit, pivot);
+        }
+
+        private Texture2D LoadTextureForMode(string resourceName, Texture2D placeholder, TextureWrapMode wrapMode)
+        {
+            if (visualMode == RoadPrototypeVisualMode.ImportedPrototypeAssets)
+            {
+                return PrototypeCompositeAssets.LoadTexture(resourceName, placeholder, wrapMode);
+            }
+
+            placeholder.wrapMode = wrapMode;
+            return placeholder;
+        }
+
+        private Sprite CreateSprite(string spriteName, Texture2D texture, float pixelsPerUnit, Vector2 pivot)
         {
             Sprite sprite = Sprite.Create(
                 texture,
                 new Rect(0f, 0f, texture.width, texture.height),
-                new Vector2(0.5f, 0.5f),
+                pivot,
                 pixelsPerUnit
             );
             sprite.name = spriteName;
@@ -342,6 +520,24 @@ namespace NewTrip.Client.Road
                     bool dash = y % 32 < 18;
                     bool stripe = x >= 6 && x <= 9;
                     texture.SetPixel(x, y, dash && stripe ? new Color(1f, 0.86f, 0.56f, 0.92f) : clear);
+                }
+            }
+
+            texture.Apply();
+            return texture;
+        }
+
+        private static Texture2D CreateShoulderTexture()
+        {
+            Texture2D texture = NewTexture("PrototypeShoulderTexture", 32, 64, TextureWrapMode.Repeat);
+
+            for (int y = 0; y < texture.height; y++)
+            {
+                for (int x = 0; x < texture.width; x++)
+                {
+                    float noise = ((x * 11 + y * 23) % 17) / 17f;
+                    Color color = Color.Lerp(new Color(0.34f, 0.21f, 0.14f, 0.92f), new Color(0.52f, 0.34f, 0.2f, 0.96f), noise);
+                    texture.SetPixel(x, y, color);
                 }
             }
 

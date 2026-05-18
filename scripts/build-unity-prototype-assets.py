@@ -20,13 +20,13 @@ from PIL import Image, ImageDraw
 DEFAULT_FILES = {
     "bridge": "ChatGPT Image 2026年5月16日 下午09_46_43 (8).png",
     "weather": "ChatGPT Image 2026年5月16日 下午09_46_43 (7).png",
-    "far": "ChatGPT Image 2026年5月16日 下午09_45_09 (6).png",
+    "far": "ChatGPT Image 2026年5月16日 下午09_46_42 (6).png",
     "sky": "ChatGPT Image 2026年5月16日 下午09_46_42 (5).png",
     "roadside_alt": "ChatGPT Image 2026年5月16日 下午09_46_40 (3).png",
     "car": "ChatGPT Image 2026年5月16日 下午09_46_40 (2).png",
     "road": "ChatGPT Image 2026年5月16日 下午09_46_40 (1).png",
-    "roadside": "ChatGPT Image 2026年5月16日 下午09_45_09 (3).png",
-    "sign": "ChatGPT Image 2026年5月16日 下午09_45_09 (4).png",
+    "roadside": "ChatGPT Image 2026年5月16日 下午09_46_40 (3).png",
+    "sign": "ChatGPT Image 2026年5月16日 下午09_46_41 (4).png",
 }
 
 

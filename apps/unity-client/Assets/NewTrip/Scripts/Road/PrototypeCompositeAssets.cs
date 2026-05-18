@@ -32,7 +32,18 @@ namespace NewTrip.Client.Road
 
             if (texture == null)
             {
+                Debug.LogWarning("PrototypeComposite texture missing, using fallback: " + ResourceRoot + assetName);
                 texture = fallbackTexture;
+            }
+            else
+            {
+                Debug.Log(
+                    "PrototypeComposite texture loaded: " +
+                    assetName + ", " +
+                    texture.width + "x" + texture.height + ", " +
+                    "wrap=" + texture.wrapMode + ", " +
+                    "filter=" + texture.filterMode
+                );
             }
 
             texture.filterMode = FilterMode.Point;

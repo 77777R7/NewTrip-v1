@@ -1,0 +1,272 @@
+{
+  "manifest": "docs/art/bigsur-unity-asset-extraction-manifest-v1.json",
+  "source_dir": "/Users/howard07/Downloads",
+  "output_dir": "apps/unity-client/Assets/NewTrip/Art/ExtractedSprites",
+  "asset_count": 12,
+  "assets": [
+    {
+      "id": "car_beige_default",
+      "output_file": "car_beige_default.png",
+      "status": "review",
+      "qa_result": "needs_unity_anchor_check",
+      "size": [
+        512,
+        512
+      ],
+      "alpha_bbox": [
+        76,
+        182,
+        436,
+        512
+      ],
+      "has_transparency": true,
+      "edge_alpha_pixels": 177,
+      "pivot": [
+        0.5,
+        0.0
+      ]
+    },
+    {
+      "id": "car_beige_brake",
+      "output_file": "car_beige_brake.png",
+      "status": "review",
+      "qa_result": "duplicate_source_until_brake_variant_is_cleanly_exported",
+      "size": [
+        512,
+        512
+      ],
+      "alpha_bbox": [
+        76,
+        182,
+        436,
+        512
+      ],
+      "has_transparency": true,
+      "edge_alpha_pixels": 177,
+      "pivot": [
+        0.5,
+        0.0
+      ]
+    },
+    {
+      "id": "car_beige_dirty",
+      "output_file": "car_beige_dirty.png",
+      "status": "review",
+      "qa_result": "needs_unity_anchor_check",
+      "size": [
+        512,
+        512
+      ],
+      "alpha_bbox": [
+        75,
+        181,
+        436,
+        512
+      ],
+      "has_transparency": true,
+      "edge_alpha_pixels": 183,
+      "pivot": [
+        0.5,
+        0.0
+      ]
+    },
+    {
+      "id": "road_asphalt_tile",
+      "output_file": "road_asphalt_tile.png",
+      "status": "review",
+      "qa_result": "check_tiling_noise_in_road_renderer",
+      "size": [
+        560,
+        723
+      ],
+      "alpha_bbox": [
+        0,
+        0,
+        560,
+        723
+      ],
+      "has_transparency": false,
+      "edge_alpha_pixels": 2566,
+      "pivot": [
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "lane_center_yellow_strip",
+      "output_file": "lane_center_yellow_strip.png",
+      "status": "review",
+      "qa_result": "needs_tile_loop_check",
+      "size": [
+        128,
+        1024
+      ],
+      "alpha_bbox": [
+        0,
+        0,
+        128,
+        1024
+      ],
+      "has_transparency": true,
+      "edge_alpha_pixels": 2139,
+      "pivot": [
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "sign_california_1",
+      "output_file": "sign_california_1.png",
+      "status": "review",
+      "qa_result": "bottom_center_pivot_required",
+      "size": [
+        384,
+        512
+      ],
+      "alpha_bbox": [
+        96,
+        170,
+        299,
+        512
+      ],
+      "has_transparency": true,
+      "edge_alpha_pixels": 113,
+      "pivot": [
+        0.5,
+        0.0
+      ]
+    },
+    {
+      "id": "sign_green_blank",
+      "output_file": "sign_green_blank.png",
+      "status": "review",
+      "qa_result": "use_unity_pixel_font_for_text",
+      "size": [
+        384,
+        512
+      ],
+      "alpha_bbox": [
+        87,
+        178,
+        300,
+        512
+      ],
+      "has_transparency": true,
+      "edge_alpha_pixels": 203,
+      "pivot": [
+        0.5,
+        0.0
+      ]
+    },
+    {
+      "id": "sign_blue_arrow_blank",
+      "output_file": "sign_blue_arrow_blank.png",
+      "status": "review",
+      "qa_result": "rest_stop_text_should_be_unity_text_later",
+      "size": [
+        384,
+        512
+      ],
+      "alpha_bbox": [
+        88,
+        213,
+        285,
+        512
+      ],
+      "has_transparency": true,
+      "edge_alpha_pixels": 170,
+      "pivot": [
+        0.5,
+        0.0
+      ]
+    },
+    {
+      "id": "roadside_rock_01",
+      "output_file": "roadside_rock_01.png",
+      "status": "review",
+      "qa_result": "single_sprite_only",
+      "size": [
+        256,
+        256
+      ],
+      "alpha_bbox": [
+        60,
+        177,
+        192,
+        256
+      ],
+      "has_transparency": true,
+      "edge_alpha_pixels": 19,
+      "pivot": [
+        0.5,
+        0.0
+      ]
+    },
+    {
+      "id": "roadside_bush_01",
+      "output_file": "roadside_bush_01.png",
+      "status": "review",
+      "qa_result": "bottom_center_pivot_required",
+      "size": [
+        256,
+        256
+      ],
+      "alpha_bbox": [
+        68,
+        158,
+        188,
+        256
+      ],
+      "has_transparency": true,
+      "edge_alpha_pixels": 75,
+      "pivot": [
+        0.5,
+        0.0
+      ]
+    },
+    {
+      "id": "roadside_guardrail_01",
+      "output_file": "roadside_guardrail_01.png",
+      "status": "review",
+      "qa_result": "verify_not_floating_at_spawn_depth",
+      "size": [
+        512,
+        192
+      ],
+      "alpha_bbox": [
+        51,
+        127,
+        461,
+        192
+      ],
+      "has_transparency": true,
+      "edge_alpha_pixels": 38,
+      "pivot": [
+        0.5,
+        0.0
+      ]
+    },
+    {
+      "id": "weather_haze_clouds",
+      "output_file": "weather_haze_clouds.png",
+      "status": "review",
+      "qa_result": "overlay_only_not_background",
+      "size": [
+        1024,
+        512
+      ],
+      "alpha_bbox": [
+        211,
+        71,
+        820,
+        447
+      ],
+      "has_transparency": true,
+      "edge_alpha_pixels": 0,
+      "pivot": [
+        0.5,
+        0.5
+      ]
+    }
+  ]
+}

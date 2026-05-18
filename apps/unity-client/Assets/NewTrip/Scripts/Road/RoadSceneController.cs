@@ -5,6 +5,7 @@ namespace NewTrip.Client.Road
 {
     public sealed class RoadSceneController : MonoBehaviour
     {
+        public RoadMotionState motionState;
         public Pseudo3DRoadRenderer roadRenderer;
         public LaneMarkingRenderer laneMarkingRenderer;
         public CarRearController carRearController;
@@ -14,9 +15,12 @@ namespace NewTrip.Client.Road
 
         [Header("Demo Preview Only")]
         public bool runDemoPreview = true;
+        public bool autoSpawnDemoSigns;
+        public bool spawnForcedStopSignOnServerState;
         public float serverSpeedKmph = 72f;
         public float demoDistancePreviewKm;
-        public string initialWeatherKey = "haze";
+        public string initialWeatherKey = "clear";
+        public string initialForcedStopReason = "";
         public float demoSignSpawnIntervalSeconds = 5.5f;
 
         private readonly string[] demoWeatherCycle = { "clear", "haze", "fog", "rain" };
@@ -27,7 +31,7 @@ namespace NewTrip.Client.Road
 
         private void Start()
         {
-            ApplyServerVisualState(demoDistancePreviewKm, serverSpeedKmph, initialWeatherKey, false, "LANDMARK_REQUIRED");
+            ApplyServerVisualState(demoDistancePreviewKm, serverSpeedKmph, initialWeatherKey, false, initialForcedStopReason);
             demoSignTimer = demoSignSpawnIntervalSeconds;
         }
 
@@ -62,7 +66,7 @@ namespace NewTrip.Client.Road
                 landmarkSignSpawner.SpawnPlaceholderSign(RoadsideSide.Right);
             }
 
-            if (runDemoPreview && landmarkSignSpawner != null)
+            if (runDemoPreview && autoSpawnDemoSigns && landmarkSignSpawner != null)
             {
                 demoSignTimer -= Time.deltaTime;
 
@@ -97,7 +101,7 @@ namespace NewTrip.Client.Road
                 weatherOverlayRenderer.SetWeather(weatherKey);
             }
 
-            if (!string.IsNullOrEmpty(forcedStopReason) && landmarkSignSpawner != null)
+            if (spawnForcedStopSignOnServerState && !string.IsNullOrEmpty(forcedStopReason) && landmarkSignSpawner != null)
             {
                 landmarkSignSpawner.SpawnPlaceholderSign(RoadsideSide.Right);
             }
@@ -105,6 +109,11 @@ namespace NewTrip.Client.Road
 
         private void ApplySpeed(float speedKmph)
         {
+            if (motionState != null)
+            {
+                motionState.SetServerSpeedKmph(speedKmph);
+            }
+
             if (roadRenderer != null)
             {
                 roadRenderer.SetServerSpeed(speedKmph);

@@ -2,6 +2,13 @@ using UnityEngine;
 
 namespace NewTrip.Client.Road
 {
+    public enum RoadVisualSegmentKey
+    {
+        CoastalCliffsSunset,
+        BridgeCoastNight,
+        BoardwalkApproachMorning
+    }
+
     public sealed class RoadBackgroundController : MonoBehaviour
     {
         public Pseudo3DRoadRenderer roadRenderer;
@@ -12,6 +19,16 @@ namespace NewTrip.Client.Road
         public Color skyTint = Color.white;
         public Color farTint = Color.white;
         public Color midgroundTint = Color.white;
+        public RoadVisualSegmentKey activeSegment = RoadVisualSegmentKey.CoastalCliffsSunset;
+        public bool enforceDrivingLayerPolicy = true;
+        public bool showFarBackground = true;
+        public bool showMidgroundLandmark;
+
+        [Range(0.1f, 0.6f)]
+        public float farBandHeightViewport = 0.32f;
+
+        [Range(0.1f, 0.55f)]
+        public float midgroundBandHeightViewport = 0.28f;
 
         private void Awake()
         {
@@ -47,10 +64,34 @@ namespace NewTrip.Client.Road
         {
             float width = roadRenderer != null ? roadRenderer.renderWidth : 5.625f;
             float height = roadRenderer != null ? roadRenderer.renderHeight : 10f;
+            bool midgroundAllowed = showMidgroundLandmark;
 
-            FitSprite(skyLayer, width, height, new Vector2(0.5f, 0.5f), 1.4f, skyTint, 0, SpriteFitMode.Cover);
-            FitSprite(farBackgroundLayer, width * 1.04f, height * 0.36f, new Vector2(0.5f, 0.43f), 1.1f, farTint, 5, SpriteFitMode.Cover);
-            FitSprite(midgroundLandmarkLayer, width * 1.08f, height * 0.36f, new Vector2(0.5f, 0.42f), 0.8f, midgroundTint, 8, SpriteFitMode.Contain);
+            if (enforceDrivingLayerPolicy && activeSegment == RoadVisualSegmentKey.CoastalCliffsSunset)
+            {
+                midgroundAllowed = false;
+            }
+
+            FitSprite(skyLayer, width, height, new Vector2(0.5f, 0.5f), 1.4f, skyTint, -30, SpriteFitMode.Cover);
+            SetRendererVisible(farBackgroundLayer, showFarBackground);
+            SetRendererVisible(midgroundLandmarkLayer, midgroundAllowed);
+
+            if (showFarBackground)
+            {
+                FitSprite(farBackgroundLayer, width * 1.08f, height * farBandHeightViewport, new Vector2(0.5f, 0.44f), 1.1f, farTint, -20, SpriteFitMode.Contain);
+            }
+
+            if (midgroundAllowed)
+            {
+                FitSprite(midgroundLandmarkLayer, width * 1.08f, height * midgroundBandHeightViewport, new Vector2(0.5f, 0.43f), 0.8f, midgroundTint, -10, SpriteFitMode.Contain);
+            }
+        }
+
+        private static void SetRendererVisible(SpriteRenderer renderer, bool visible)
+        {
+            if (renderer != null)
+            {
+                renderer.enabled = visible && renderer.sprite != null;
+            }
         }
 
         private void FitSprite(

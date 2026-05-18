@@ -15,6 +15,9 @@ namespace NewTrip.Client.Road
         public float nearScale = 1.05f;
         public float farScale = 0.11f;
 
+        [Range(0.2f, 1f)]
+        public float spawnDepth = 0.84f;
+
         private readonly List<SpawnedSign> activeSigns = new List<SpawnedSign>();
         private int signIndex;
 
@@ -63,7 +66,7 @@ namespace NewTrip.Client.Road
 
             SpawnedSign sign = new SpawnedSign(root.transform, spriteRenderer, side)
             {
-                Depth = 1f
+                Depth = spawnDepth
             };
 
             activeSigns.Add(sign);

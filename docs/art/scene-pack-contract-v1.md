@@ -303,6 +303,21 @@ layers:
 9. Promote to `approved` only after visual review and, for driving layers, a composite check.
 10. Import approved assets into Unity only after the metadata is complete.
 
+## Unity Import Gate
+
+Generated sheets are source material, not runtime sprites. Before a driving asset can be used by the Unity prototype, it must pass the extraction rules in `docs/client/unity-asset-extraction-rules-v1.md`.
+
+Runtime imports must have:
+
+- clean alpha for every prop, sign, car, far cutout, bridge cutout, or weather overlay;
+- fixed canvas size when the sprite participates in scale or anchor tests;
+- bottom-center pivot for physical props, signs, guardrails, rocks, trees, and the rear car;
+- center pivot for full-frame sky, weather overlays, and texture tiles;
+- manifest status and QA notes;
+- no full rectangle far/bridge layer in a gameplay composite.
+
+For the current route plan, `bridge_midground` is disabled in the 0-35 km `coastal_cliffs` segment and belongs to the 35-70 km `bridge_coast` segment unless a future config explicitly marks it as a transition.
+
 ## Definition Of Done
 
 An asset is not production done unless all checks pass:

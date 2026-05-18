@@ -2,6 +2,13 @@ using UnityEngine;
 
 namespace NewTrip.Client.Road
 {
+    public enum RoadShoulderSide
+    {
+        Both,
+        Left,
+        Right
+    }
+
     [ExecuteAlways]
     [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
     public sealed class RoadShoulderRenderer : MonoBehaviour
@@ -17,9 +24,15 @@ namespace NewTrip.Client.Road
         [Range(0.02f, 0.45f)]
         public float shoulderWidthMultiplier = 0.22f;
 
+        public RoadShoulderSide side = RoadShoulderSide.Both;
+        public bool useExplicitRoadMultipliers;
+        public float innerRoadMultiplier = 1f;
+        public float outerRoadMultiplier = 1.22f;
+
         public float textureRepeat = 5f;
         public float textureMetersPerRepeat = 16f;
         public float scrollMultiplier = 0.85f;
+        public bool mapDepthToTextureU;
         public bool animateInEditMode;
         public bool useDepthAwareMotion = true;
 
@@ -111,14 +124,16 @@ namespace NewTrip.Client.Road
             Vector3[] vertices = new Vector3[vertexRows * 4];
             meshUvs = new Vector2[vertices.Length];
             Color[] colors = new Color[vertices.Length];
-            int[] triangles = new int[sliceCount * 12];
+            int trianglesPerSlice = side == RoadShoulderSide.Both ? 12 : 6;
+            int[] triangles = new int[sliceCount * trianglesPerSlice];
 
             for (int i = 0; i < vertexRows; i++)
             {
                 float depth = i / (float)sliceCount;
                 RoadProjectionSample sample = roadRenderer.Sample(depth);
                 int index = i * 4;
-                float outerMultiplier = 1f + shoulderWidthMultiplier;
+                float innerMultiplier = Mathf.Max(0.01f, useExplicitRoadMultipliers ? innerRoadMultiplier : 1f);
+                float outerMultiplier = Mathf.Max(innerMultiplier + 0.01f, useExplicitRoadMultipliers ? outerRoadMultiplier : 1f + shoulderWidthMultiplier);
                 Color vertexColor = Color.Lerp(nearTint, farTint, Mathf.Clamp01(depth));
 
                 if (useHorizonFade)
@@ -128,15 +143,11 @@ namespace NewTrip.Client.Road
                 }
 
                 vertices[index] = sample.PointAt(-outerMultiplier, 0.01f);
-                vertices[index + 1] = sample.PointAt(-1f, 0.01f);
-                vertices[index + 2] = sample.PointAt(1f, 0.01f);
+                vertices[index + 1] = sample.PointAt(-innerMultiplier, 0.01f);
+                vertices[index + 2] = sample.PointAt(innerMultiplier, 0.01f);
                 vertices[index + 3] = sample.PointAt(outerMultiplier, 0.01f);
 
-                float v = GetV(depth, CurrentMotionOffset());
-                meshUvs[index] = new Vector2(0f, v);
-                meshUvs[index + 1] = new Vector2(1f, v);
-                meshUvs[index + 2] = new Vector2(0f, v);
-                meshUvs[index + 3] = new Vector2(1f, v);
+                SetRowUvs(index, GetV(depth, CurrentMotionOffset()));
 
                 colors[index] = vertexColor;
                 colors[index + 1] = vertexColor;
@@ -146,23 +157,30 @@ namespace NewTrip.Client.Road
 
             for (int i = 0; i < sliceCount; i++)
             {
-                int tri = i * 12;
+                int tri = i * trianglesPerSlice;
                 int row = i * 4;
                 int next = row + 4;
 
-                triangles[tri] = row;
-                triangles[tri + 1] = next;
-                triangles[tri + 2] = row + 1;
-                triangles[tri + 3] = row + 1;
-                triangles[tri + 4] = next;
-                triangles[tri + 5] = next + 1;
+                if (side != RoadShoulderSide.Right)
+                {
+                    triangles[tri] = row;
+                    triangles[tri + 1] = next;
+                    triangles[tri + 2] = row + 1;
+                    triangles[tri + 3] = row + 1;
+                    triangles[tri + 4] = next;
+                    triangles[tri + 5] = next + 1;
+                    tri += 6;
+                }
 
-                triangles[tri + 6] = row + 2;
-                triangles[tri + 7] = next + 2;
-                triangles[tri + 8] = row + 3;
-                triangles[tri + 9] = row + 3;
-                triangles[tri + 10] = next + 2;
-                triangles[tri + 11] = next + 3;
+                if (side != RoadShoulderSide.Left)
+                {
+                    triangles[tri] = row + 2;
+                    triangles[tri + 1] = next + 2;
+                    triangles[tri + 2] = row + 3;
+                    triangles[tri + 3] = row + 3;
+                    triangles[tri + 4] = next + 2;
+                    triangles[tri + 5] = next + 3;
+                }
             }
 
             if (shoulderMesh == null)
@@ -198,15 +216,28 @@ namespace NewTrip.Client.Road
             for (int i = 0; i <= sliceCount; i++)
             {
                 float depth = i / (float)sliceCount;
-                float v = GetV(depth, motionOffset);
                 int index = i * 4;
-                meshUvs[index] = new Vector2(0f, v);
-                meshUvs[index + 1] = new Vector2(1f, v);
-                meshUvs[index + 2] = new Vector2(0f, v);
-                meshUvs[index + 3] = new Vector2(1f, v);
+                SetRowUvs(index, GetV(depth, motionOffset));
             }
 
             shoulderMesh.uv = meshUvs;
+        }
+
+        private void SetRowUvs(int index, float lengthCoordinate)
+        {
+            if (mapDepthToTextureU)
+            {
+                meshUvs[index] = new Vector2(lengthCoordinate, 0f);
+                meshUvs[index + 1] = new Vector2(lengthCoordinate, 1f);
+                meshUvs[index + 2] = new Vector2(lengthCoordinate, 0f);
+                meshUvs[index + 3] = new Vector2(lengthCoordinate, 1f);
+                return;
+            }
+
+            meshUvs[index] = new Vector2(0f, lengthCoordinate);
+            meshUvs[index + 1] = new Vector2(1f, lengthCoordinate);
+            meshUvs[index + 2] = new Vector2(0f, lengthCoordinate);
+            meshUvs[index + 3] = new Vector2(1f, lengthCoordinate);
         }
 
         private float CurrentMotionOffset()

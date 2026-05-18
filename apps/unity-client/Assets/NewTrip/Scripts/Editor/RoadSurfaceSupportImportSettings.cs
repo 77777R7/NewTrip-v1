@@ -12,6 +12,11 @@ namespace NewTrip.Client.Editor
         public const string LaneAssetPath = "Assets/NewTrip/Art/PrototypeComposite/Resources/PrototypeComposite/lane_yellow_single_runtime_strip.png";
         public const string CrackDecalAssetPath = "Assets/NewTrip/Art/PrototypeComposite/Resources/PrototypeComposite/user_road_crack_detail_source.png";
         public const string LaneWearDetailAssetPath = "Assets/NewTrip/Art/PrototypeComposite/Resources/PrototypeComposite/user_lane_worn_detail_source.png";
+        public const string RoadEdgeWhiteLineStripAssetPath = "Assets/NewTrip/Art/PrototypeComposite/Resources/PrototypeComposite/road_edge_white_line_strip.png";
+        public const string DirtShoulderAssetPath = "Assets/NewTrip/Art/PrototypeComposite/Resources/PrototypeComposite/road_dirt_shoulder_strip_seamless.png";
+        public const string CoastalVegetationShoulderAssetPath = "Assets/NewTrip/Art/PrototypeComposite/Resources/PrototypeComposite/roadside_vegetation_shoulder_modular_segments.png";
+        public const string RoadsideFlowerBorderAssetPath = "Assets/NewTrip/Art/RoadsideRuntime/roadside_flower_border_02.png";
+        private const string RoadsideRuntimeFolder = "Assets/NewTrip/Art/RoadsideRuntime/";
 
         private void OnPreprocessTexture()
         {
@@ -30,6 +35,24 @@ namespace NewTrip.Client.Editor
             if (assetPath == CrackDecalAssetPath || assetPath == LaneWearDetailAssetPath)
             {
                 ApplyTextureSettings((TextureImporter)assetImporter, alphaIsTransparency: false, mipmaps: false, filterMode: FilterMode.Point);
+                return;
+            }
+
+            if (assetPath == DirtShoulderAssetPath)
+            {
+                ApplyTextureSettings((TextureImporter)assetImporter, alphaIsTransparency: false, mipmaps: false, filterMode: FilterMode.Point);
+                return;
+            }
+
+            if (assetPath == CoastalVegetationShoulderAssetPath || assetPath == RoadEdgeWhiteLineStripAssetPath)
+            {
+                ApplyTextureSettings((TextureImporter)assetImporter, alphaIsTransparency: true, mipmaps: false, filterMode: FilterMode.Point);
+                return;
+            }
+
+            if (assetPath.StartsWith(RoadsideRuntimeFolder, System.StringComparison.Ordinal))
+            {
+                ApplyTextureSettings((TextureImporter)assetImporter, alphaIsTransparency: true, mipmaps: false, filterMode: FilterMode.Point);
             }
         }
 
@@ -42,6 +65,10 @@ namespace NewTrip.Client.Editor
             ApplyToPath(LaneAssetPath, alphaIsTransparency: true, mipmaps: false, filterMode: FilterMode.Point);
             ApplyToPath(CrackDecalAssetPath, alphaIsTransparency: false, mipmaps: false, filterMode: FilterMode.Point);
             ApplyToPath(LaneWearDetailAssetPath, alphaIsTransparency: false, mipmaps: false, filterMode: FilterMode.Point);
+            ApplyToPath(RoadEdgeWhiteLineStripAssetPath, alphaIsTransparency: true, mipmaps: false, filterMode: FilterMode.Point);
+            ApplyToPath(DirtShoulderAssetPath, alphaIsTransparency: false, mipmaps: false, filterMode: FilterMode.Point);
+            ApplyToPath(CoastalVegetationShoulderAssetPath, alphaIsTransparency: true, mipmaps: false, filterMode: FilterMode.Point);
+            ApplyToPath(RoadsideFlowerBorderAssetPath, alphaIsTransparency: true, mipmaps: false, filterMode: FilterMode.Point);
             AssetDatabase.Refresh();
         }
 

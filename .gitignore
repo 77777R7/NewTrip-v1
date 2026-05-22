@@ -30,3 +30,7 @@ supabase/.temp/
 # Local visual verification captures.
 unity-road-prototype-*.png
 apps/unity-client/Artifacts/
+apps/unity-client/Assets/Screenshots/
+apps/unity-client/Assets/Screenshots.meta
+apps/unity-client/Assets/_Recovery/
+apps/unity-client/Assets/_Recovery.meta

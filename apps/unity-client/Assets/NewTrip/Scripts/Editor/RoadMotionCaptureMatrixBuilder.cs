@@ -13,8 +13,8 @@ namespace NewTrip.Client.Editor
     {
         private const string ScenePath = "Assets/NewTrip/Scenes/RoadMotionReview.unity";
         private const string ScreenshotOutputFolder = "Artifacts/RoadMotionMatrix";
-        private const float RenderWidth = 5.625f;
-        private const float RenderHeight = 10f;
+        private const float RenderWidth = RoadViewportContract.WorldWidth;
+        private const float RenderHeight = RoadViewportContract.WorldHeight;
         private const int CaptureWidth = 1080;
         private const int CaptureHeight = 1920;
 
@@ -43,7 +43,7 @@ namespace NewTrip.Client.Editor
             GameObject root = new GameObject("RoadMotionReviewRoot");
             RoadMotionState motionState = CreateMotionState(root);
 
-            Material roadMaterial = CreateTextureMaterial(
+            Material roadMaterial = CreateOpaqueRoadMaterial(
                 "RoadMotion_User_Asphalt_Material",
                 LoadTextureOrFallback(RoadSurfaceSupportImportSettings.AsphaltAssetPath, CreateRoadFallbackTexture())
             );
@@ -182,7 +182,7 @@ namespace NewTrip.Client.Editor
             roadRenderer.motionState = motionState;
             roadRenderer.renderWidth = RenderWidth;
             roadRenderer.renderHeight = RenderHeight;
-            roadRenderer.projectionPreset = RoadProjectionPreset.BigSurPrototype;
+            roadRenderer.projectionPreset = RoadProjectionPreset.GeminiLowCamera;
             roadRenderer.applyProjectionPresetOnRebuild = true;
             roadRenderer.sliceCount = 72;
             roadRenderer.useDepthAwareMotion = true;
@@ -190,9 +190,7 @@ namespace NewTrip.Client.Editor
             roadRenderer.asphaltTileWorldWidth = 1.45f;
             roadRenderer.textureRepeat = 3.8f;
             roadRenderer.textureMetersPerRepeat = 44f;
-            roadRenderer.horizonFadeStartDepth = 0.58f;
-            roadRenderer.horizonAlpha = 0.035f;
-            roadRenderer.farTint = new Color(0.58f, 0.53f, 0.48f, 1f);
+            roadRenderer.ApplyVisualTuningPreset(RoadVisualTuningPreset.BigSurSunsetWarmBalanced);
             roadRenderer.SetMaterial(material);
             SetRendererOrder(roadObject, 10);
             roadRenderer.RebuildMesh();
@@ -318,10 +316,7 @@ namespace NewTrip.Client.Editor
             roadRenderer.textureMetersPerRepeat = variant.RoadMetersPerRepeat;
             roadRenderer.useWidthBasedTextureU = true;
             roadRenderer.asphaltTileWorldWidth = 1.45f;
-            roadRenderer.horizonFadeStartDepth = variant.HorizonFadeStart;
-            roadRenderer.horizonAlpha = variant.HorizonAlpha;
-            roadRenderer.nearTint = Color.white;
-            roadRenderer.farTint = new Color(0.58f, 0.53f, 0.48f, 1f);
+            roadRenderer.ApplyVisualTuningPreset(RoadVisualTuningPreset.BigSurSunsetWarmBalanced);
             roadRenderer.RebuildMesh();
 
             shoulderRenderer.textureRepeat = Mathf.Max(3f, variant.RoadRepeat * 0.65f);
@@ -355,8 +350,8 @@ namespace NewTrip.Client.Editor
             laneRenderer.useDepthAwareMotion = true;
             laneRenderer.horizonFadeStartDepth = variant.HorizonFadeStart;
             laneRenderer.horizonAlpha = Mathf.Min(variant.HorizonAlpha, 0.025f);
-            laneRenderer.nearTint = Color.white;
-            laneRenderer.farTint = new Color(1f, 0.76f, 0.48f, 1f);
+            laneRenderer.nearTint = new Color(1f, 0.70f, 0.18f, 1f);
+            laneRenderer.farTint = new Color(1f, 0.62f, 0.18f, 1f);
             laneRenderer.RebuildMesh();
         }
 
@@ -407,21 +402,15 @@ namespace NewTrip.Client.Editor
 
         private static Material CreateTextureMaterial(string materialName, Texture2D texture)
         {
-            Shader shader = Shader.Find("Sprites/Default");
-
-            if (shader == null)
-            {
-                shader = Shader.Find("Unlit/Transparent");
-            }
-
-            Material material = new Material(shader)
-            {
-                name = materialName,
-                mainTexture = texture
-            };
+            Material material = PixelArtMaterialUtility.CreateTransparentMaterial(materialName, texture);
+            material.mainTexture = texture;
             material.SetColor("_Color", Color.white);
-            material.SetInt("_Cull", (int)UnityEngine.Rendering.CullMode.Off);
             return material;
+        }
+
+        private static Material CreateOpaqueRoadMaterial(string materialName, Texture2D texture)
+        {
+            return PixelArtMaterialUtility.CreateOpaqueRoadMaterial(materialName, texture);
         }
 
         private static void LogTexture(string label, Material material)

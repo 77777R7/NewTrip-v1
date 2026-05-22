@@ -19,7 +19,7 @@ namespace NewTrip.Client.Editor
                 ScenePath,
                 RoadPrototypeVisualMode.PlaceholderOnly,
                 enableImportedLayers: false,
-                "Created placeholder RoadPrototype scene. Press Play to validate road/camera/car anchors before enabling imported assets."
+                "Created placeholder RoadPrototype scene with GeminiLowCamera projection. Press Play to validate road/camera/car anchors before enabling imported assets."
             );
         }
 
@@ -48,7 +48,7 @@ namespace NewTrip.Client.Editor
             RoadPrototypeBootstrap bootstrap = bootstrapObject.AddComponent<RoadPrototypeBootstrap>();
             bootstrap.visualMode = visualMode;
             bootstrap.activeSegment = RoadVisualSegmentKey.CoastalCliffsSunset;
-            bootstrap.projectionPreset = RoadProjectionPreset.BigSurPrototype;
+            bootstrap.projectionPreset = RoadProjectionPreset.GeminiLowCamera;
             bootstrap.showDebugOverlay = true;
             bootstrap.enableFarBackgroundLayer = enableImportedLayers;
             bootstrap.enableRoadsideSpawner = true;
@@ -59,7 +59,7 @@ namespace NewTrip.Client.Editor
             camera.gameObject.tag = "MainCamera";
             camera.transform.position = new Vector3(0f, 0f, -10f);
             camera.orthographic = true;
-            camera.orthographicSize = 5f;
+            camera.orthographicSize = RoadViewportContract.WorldHeight * 0.5f;
             camera.clearFlags = CameraClearFlags.SolidColor;
             camera.backgroundColor = new Color(0.98f, 0.62f, 0.36f);
 

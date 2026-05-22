@@ -14,11 +14,12 @@ namespace NewTrip.Client.Editor
 
         private const string ScenePath = "Assets/NewTrip/Scenes/RoadOnlyTest.unity";
         private const string ScreenshotOutputFolder = "Artifacts/RoadOnlyTest";
-        private const float RenderWidth = 5.625f;
-        private const float RenderHeight = 10f;
+        private const float RenderWidth = RoadViewportContract.WorldWidth;
+        private const float RenderHeight = RoadViewportContract.WorldHeight;
         private const int CaptureWidth = 1080;
         private const int CaptureHeight = 1920;
         private const bool UseAcceptedWideRoadRelativeYellow = true;
+        private const RoadProjectionPreset ActiveProductionCandidateProjection = RoadProjectionPreset.GeminiLowCamera;
 
         [MenuItem("NewTrip/Road Prototype/Create RoadOnlyTest Scene")]
         public static void CreateRoadOnlyTestScene()
@@ -40,7 +41,7 @@ namespace NewTrip.Client.Editor
             RoadMotionState motionState = motionObject.AddComponent<RoadMotionState>();
             motionState.serverSpeedKmph = 72f;
 
-            Material roadMaterial = CreateTextureMaterial(
+            Material roadMaterial = CreateOpaqueRoadMaterial(
                 "RoadOnly_AsphaltTile_Material",
                 LoadTexture(RoadSurfaceSupportImportSettings.AsphaltAssetPath)
             );
@@ -50,7 +51,7 @@ namespace NewTrip.Client.Editor
             );
             Material edgeLineMaterial = CreateSolidMaterial(
                 "RoadOnly_WhiteEdgeLine_Material",
-                new Color(0.96f, 0.82f, 0.68f, 0.88f)
+                new Color(0.92f, 0.78f, 0.60f, 0.82f)
             );
             Material crackDetailMaterial = CreateTextureMaterial(
                 "RoadOnly_CrackDetail_Source_Material",
@@ -67,7 +68,7 @@ namespace NewTrip.Client.Editor
             roadRenderer.motionState = motionState;
             roadRenderer.renderWidth = RenderWidth;
             roadRenderer.renderHeight = RenderHeight;
-            roadRenderer.projectionPreset = RoadProjectionPreset.BigSurPrototype;
+            roadRenderer.projectionPreset = ActiveProductionCandidateProjection;
             roadRenderer.applyProjectionPresetOnRebuild = true;
             roadRenderer.sliceCount = 72;
             roadRenderer.textureUMin = 0f;
@@ -77,11 +78,7 @@ namespace NewTrip.Client.Editor
             roadRenderer.textureRepeat = 3.8f;
             roadRenderer.textureMetersPerRepeat = 44f;
             roadRenderer.useDepthAwareMotion = true;
-            roadRenderer.useHorizonFade = true;
-            roadRenderer.horizonFadeStartDepth = 0.58f;
-            roadRenderer.horizonAlpha = 0.035f;
-            roadRenderer.nearTint = Color.white;
-            roadRenderer.farTint = new Color(0.58f, 0.53f, 0.48f, 1f);
+            roadRenderer.ApplyVisualTuningPreset(RoadVisualTuningPreset.BigSurSunsetWarmBalanced);
             roadRenderer.SetMaterial(roadMaterial);
             SetRendererOrder(roadObject, 10);
             roadRenderer.RebuildMesh();
@@ -91,7 +88,7 @@ namespace NewTrip.Client.Editor
             crackRenderer.motionState = motionState;
             crackRenderer.renderWidth = RenderWidth;
             crackRenderer.renderHeight = RenderHeight;
-            crackRenderer.projectionPreset = RoadProjectionPreset.BigSurPrototype;
+            crackRenderer.projectionPreset = ActiveProductionCandidateProjection;
             crackRenderer.applyProjectionPresetOnRebuild = true;
             crackRenderer.sliceCount = 72;
             crackRenderer.textureUMin = 0f;
@@ -191,10 +188,11 @@ namespace NewTrip.Client.Editor
                 return;
             }
 
-            roadRenderer.SetMaterial(CreateTextureMaterial(
+            roadRenderer.SetMaterial(CreateOpaqueRoadMaterial(
                 "RoadOnly_AsphaltTile_CaptureMaterial",
                 LoadTexture(RoadSurfaceSupportImportSettings.AsphaltAssetPath)
             ));
+            roadRenderer.ApplyVisualTuningPreset(RoadVisualTuningPreset.BigSurSunsetWarmBalanced);
             LogTexture("RoadOnly capture road", roadRenderer.GetComponent<Renderer>()?.sharedMaterial);
             if (crackRenderer != null)
             {
@@ -212,7 +210,7 @@ namespace NewTrip.Client.Editor
             );
             Material edgeLineMaterial = CreateSolidMaterial(
                 "RoadOnly_WhiteEdgeLine_CaptureMaterial",
-                new Color(0.96f, 0.82f, 0.68f, 0.88f)
+                new Color(0.92f, 0.78f, 0.60f, 0.82f)
             );
             leftLaneRenderer.SetMaterial(yellowLineMaterial);
             rightLaneRenderer.SetMaterial(yellowLineMaterial);
@@ -234,8 +232,9 @@ namespace NewTrip.Client.Editor
                 camera,
                 screenshotOutputPath,
                 "road_only_a_viewport_depth_yellow",
-                writeLegacyNames: false,
-                useRoadRelativeYellow: false,
+                false,
+                false,
+                RoadProjectionPreset.BigSurPrototype,
                 motionState,
                 roadRenderer,
                 crackRenderer,
@@ -248,8 +247,24 @@ namespace NewTrip.Client.Editor
                 camera,
                 screenshotOutputPath,
                 "road_only_b_road_relative_yellow_edges",
-                writeLegacyNames: true,
-                useRoadRelativeYellow: true,
+                true,
+                true,
+                ActiveProductionCandidateProjection,
+                motionState,
+                roadRenderer,
+                crackRenderer,
+                leftLaneRenderer,
+                rightLaneRenderer,
+                leftEdgeRenderer,
+                rightEdgeRenderer
+            );
+            CaptureRoadOnlyVariant(
+                camera,
+                screenshotOutputPath,
+                "road_only_c_gemini_low_camera_review",
+                false,
+                true,
+                RoadProjectionPreset.GeminiLowCamera,
                 motionState,
                 roadRenderer,
                 crackRenderer,
@@ -333,8 +348,8 @@ namespace NewTrip.Client.Editor
             laneRenderer.useHorizonFade = true;
             laneRenderer.horizonFadeStartDepth = 0.55f;
             laneRenderer.horizonAlpha = 0.01f;
-            laneRenderer.nearTint = Color.white;
-            laneRenderer.farTint = new Color(1f, 0.74f, 0.42f, 1f);
+            laneRenderer.nearTint = new Color(1f, 0.70f, 0.18f, 1f);
+            laneRenderer.farTint = new Color(1f, 0.62f, 0.18f, 1f);
 
             if (useRoadRelativeProjection)
             {
@@ -376,8 +391,8 @@ namespace NewTrip.Client.Editor
             edgeRenderer.useHorizonFade = true;
             edgeRenderer.horizonFadeStartDepth = 0.55f;
             edgeRenderer.horizonAlpha = 0.02f;
-            edgeRenderer.nearTint = new Color(1f, 0.91f, 0.82f, 0.92f);
-            edgeRenderer.farTint = new Color(1f, 0.78f, 0.64f, 0.76f);
+            edgeRenderer.nearTint = new Color(0.92f, 0.78f, 0.60f, 0.82f);
+            edgeRenderer.farTint = new Color(0.86f, 0.68f, 0.54f, 0.70f);
         }
 
         private static void CaptureRoadOnlyVariant(
@@ -386,6 +401,7 @@ namespace NewTrip.Client.Editor
             string prefix,
             bool writeLegacyNames,
             bool useRoadRelativeYellow,
+            RoadProjectionPreset projectionPreset,
             RoadMotionState motionState,
             Pseudo3DRoadRenderer roadRenderer,
             Pseudo3DRoadRenderer crackRenderer,
@@ -395,6 +411,7 @@ namespace NewTrip.Client.Editor
             LaneMarkingRenderer rightEdgeRenderer
         )
         {
+            ApplyProjectionPresetForReview(projectionPreset, roadRenderer, crackRenderer);
             ConfigureYellowLine(leftLaneRenderer, side: -1, useRoadRelativeProjection: useRoadRelativeYellow);
             ConfigureYellowLine(rightLaneRenderer, side: 1, useRoadRelativeProjection: useRoadRelativeYellow);
             ConfigureRoadEdgeLine(leftEdgeRenderer, side: -1);
@@ -435,6 +452,26 @@ namespace NewTrip.Client.Editor
 
             Object.DestroyImmediate(stillFrame);
             Object.DestroyImmediate(motionFrame);
+        }
+
+        private static void ApplyProjectionPresetForReview(
+            RoadProjectionPreset projectionPreset,
+            Pseudo3DRoadRenderer roadRenderer,
+            Pseudo3DRoadRenderer crackRenderer
+        )
+        {
+            roadRenderer.projectionPreset = projectionPreset;
+            roadRenderer.applyProjectionPresetOnRebuild = true;
+            roadRenderer.ApplyProjectionPreset();
+
+            if (crackRenderer == null)
+            {
+                return;
+            }
+
+            crackRenderer.projectionPreset = projectionPreset;
+            crackRenderer.applyProjectionPresetOnRebuild = true;
+            crackRenderer.ApplyProjectionPreset();
         }
 
         private static void ResetMotionOffsets(Pseudo3DRoadRenderer roadRenderer, params LaneMarkingRenderer[] lineRenderers)
@@ -523,21 +560,15 @@ namespace NewTrip.Client.Editor
 
         private static Material CreateTextureMaterial(string materialName, Texture2D texture)
         {
-            Shader shader = Shader.Find("Sprites/Default");
-
-            if (shader == null)
-            {
-                shader = Shader.Find("Unlit/Transparent");
-            }
-
-            Material material = new Material(shader)
-            {
-                name = materialName,
-                mainTexture = texture
-            };
+            Material material = PixelArtMaterialUtility.CreateTransparentMaterial(materialName, texture);
+            material.mainTexture = texture;
             material.SetColor("_Color", Color.white);
-            material.SetInt("_Cull", (int)UnityEngine.Rendering.CullMode.Off);
             return material;
+        }
+
+        private static Material CreateOpaqueRoadMaterial(string materialName, Texture2D texture)
+        {
+            return PixelArtMaterialUtility.CreateOpaqueRoadMaterial(materialName, texture);
         }
 
         private static Material CreateSolidMaterial(string materialName, Color color)

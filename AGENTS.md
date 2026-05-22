@@ -34,10 +34,14 @@ Use the default five-role triage vocabulary: `needs-triage`, `needs-info`, `read
 
 This repo uses a single-context domain layout: root `CONTEXT.md` plus `docs/adr/`. See `docs/agents/domain.md`.
 
+### Long-running Codex threads
+
+Use `docs/agents/long-running-codex-threads.md` when starting or resuming the durable threads for Unity Visual QA, Day 14 demo stabilization, or backend spine/idempotency work.
+
 ## Working Style
 
 - If the task is ambiguous, preserve V1 scope and ask only when the choice changes product direction or external services.
 - Do not silently expand scope because a system would be "nice later."
 - Use `ROADMAP_14_DAY_CHECKLIST.md` as the source of work sequencing.
 - Use `docs/agents/mattpocock-skills-fit.md` to decide which imported workflow patterns fit this repo.
-
+- Prefer the project-specific skills `newtrip-visual-gate` and `newtrip-v1-slice` for repeated visual-gate and vertical-slice workflows.

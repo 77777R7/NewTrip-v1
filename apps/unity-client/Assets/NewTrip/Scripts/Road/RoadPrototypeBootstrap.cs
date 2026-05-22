@@ -10,13 +10,14 @@ namespace NewTrip.Client.Road
 
     public sealed class RoadPrototypeBootstrap : MonoBehaviour
     {
-        private const float RenderWidth = 5.625f;
-        private const float RenderHeight = 10f;
+        private const float RenderWidth = RoadViewportContract.WorldWidth;
+        private const float RenderHeight = RoadViewportContract.WorldHeight;
+        private const float RuntimeSpritePpu = PixelArtMaterialUtility.RuntimeSpritePixelsPerUnit;
 
         public bool buildOnAwake = true;
         public RoadPrototypeVisualMode visualMode = RoadPrototypeVisualMode.PlaceholderOnly;
         public RoadVisualSegmentKey activeSegment = RoadVisualSegmentKey.CoastalCliffsSunset;
-        public RoadProjectionPreset projectionPreset = RoadProjectionPreset.BigSurPrototype;
+        public RoadProjectionPreset projectionPreset = RoadProjectionPreset.GeminiLowCamera;
         public bool showDebugOverlay = true;
         public bool enableFarBackgroundLayer;
         public bool enableRoadsideSpawner;
@@ -55,27 +56,29 @@ namespace NewTrip.Client.Road
             Vector2 centerPivot = new Vector2(0.5f, 0.5f);
             Vector2 bottomCenterPivot = new Vector2(0.5f, 0f);
 
-            Sprite skySprite = LoadSpriteForMode("sky_sunset", CreateSkyTexture(), 160f, centerPivot);
-            Sprite farSprite = LoadSpriteForMode("far_coast_cutout", CreateFarBackgroundTexture(), 160f, centerPivot);
-            Sprite bridgeSprite = LoadSpriteForMode("bridge_midground_cutout", CreateFarBackgroundTexture(), 160f, centerPivot);
-            Sprite carSprite = LoadSpriteForMode("car_rear_player", CreateCarTexture(), visualMode == RoadPrototypeVisualMode.PlaceholderOnly ? 48f : 256f, bottomCenterPivot);
-            Sprite rockSprite = LoadSpriteForMode("roadside_rock", CreateRockTexture(), 128f, bottomCenterPivot);
-            Sprite bushSprite = LoadSpriteForMode("roadside_bush_flowers", CreatePineTexture(), 128f, bottomCenterPivot);
-            Sprite cliffSprite = LoadSpriteForMode("roadside_cliff_edge", CreateRockTexture(), 128f, bottomCenterPivot);
-            Sprite pineSprite = LoadSpriteForMode("roadside_pine", CreatePineTexture(), 128f, bottomCenterPivot);
-            Sprite guardrailSprite = LoadSpriteForMode("roadside_guardrail", CreateGuardrailTexture(), 128f, bottomCenterPivot);
-            Sprite signSprite = LoadSpriteForMode("sign_scenic_overlook", CreateSignTexture(), 128f, bottomCenterPivot);
-            Sprite bigSurSignSprite = LoadSpriteForMode("sign_big_sur_15", CreateSignTexture(), 128f, bottomCenterPivot);
-            Sprite restStopSignSprite = LoadSpriteForMode("sign_rest_stop", CreateSignTexture(), 128f, bottomCenterPivot);
-            Sprite woodArrowSignSprite = LoadSpriteForMode("sign_wood_arrow", CreateSignTexture(), 128f, bottomCenterPivot);
-            Sprite hazeSprite = LoadSpriteForMode("weather_haze_clouds", CreateHazeTexture(), 192f, centerPivot);
-            Sprite rainSprite = LoadSpriteForMode("weather_rain_streaks", CreateRainTexture(), 192f, centerPivot);
-            Sprite fogSprite = LoadSpriteForMode("weather_sun_glow", CreateFogTexture(), 192f, centerPivot);
+            Sprite skySprite = LoadSpriteForMode("sky_step2_soft_orange_background", CreateSkyTexture(), RuntimeSpritePpu, centerPivot);
+            Sprite farSprite = LoadSpriteForMode("far_coast_cutout", CreateFarBackgroundTexture(), RuntimeSpritePpu, centerPivot);
+            Sprite bridgeSprite = LoadSpriteForMode("bridge_midground_cutout", CreateFarBackgroundTexture(), RuntimeSpritePpu, centerPivot);
+            Sprite carSprite = LoadSpriteForMode("car_rear_player", CreateCarTexture(), RuntimeSpritePpu, bottomCenterPivot);
+            Sprite carShadowSprite = CreateSprite("car_contact_shadow_placeholder", CreateCarShadowTexture(), RuntimeSpritePpu, centerPivot);
+            Sprite wheelCueSprite = CreateSprite("car_wheel_speed_cue_placeholder", CreateCarWheelCueTexture(), RuntimeSpritePpu, new Vector2(0.5f, 0f));
+            Sprite rockSprite = LoadSpriteForMode("roadside_rock", CreateRockTexture(), RuntimeSpritePpu, bottomCenterPivot);
+            Sprite bushSprite = LoadSpriteForMode("roadside_bush_flowers", CreatePineTexture(), RuntimeSpritePpu, bottomCenterPivot);
+            Sprite cliffSprite = LoadSpriteForMode("roadside_cliff_edge", CreateRockTexture(), RuntimeSpritePpu, bottomCenterPivot);
+            Sprite pineSprite = LoadSpriteForMode("roadside_pine", CreatePineTexture(), RuntimeSpritePpu, bottomCenterPivot);
+            Sprite guardrailSprite = LoadSpriteForMode("roadside_guardrail", CreateGuardrailTexture(), RuntimeSpritePpu, bottomCenterPivot);
+            Sprite signSprite = LoadSpriteForMode("sign_scenic_overlook", CreateSignTexture(), RuntimeSpritePpu, bottomCenterPivot);
+            Sprite bigSurSignSprite = LoadSpriteForMode("sign_big_sur_15", CreateSignTexture(), RuntimeSpritePpu, bottomCenterPivot);
+            Sprite restStopSignSprite = LoadSpriteForMode("sign_rest_stop", CreateSignTexture(), RuntimeSpritePpu, bottomCenterPivot);
+            Sprite woodArrowSignSprite = LoadSpriteForMode("sign_wood_arrow", CreateSignTexture(), RuntimeSpritePpu, bottomCenterPivot);
+            Sprite hazeSprite = LoadSpriteForMode("weather_haze_clouds", CreateHazeTexture(), RuntimeSpritePpu, centerPivot);
+            Sprite rainSprite = LoadSpriteForMode("weather_rain_streaks", CreateRainTexture(), RuntimeSpritePpu, centerPivot);
+            Sprite fogSprite = LoadSpriteForMode("weather_sun_glow", CreateFogTexture(), RuntimeSpritePpu, centerPivot);
 
             Material roadMaterial = CreateMaterial(
                 "PrototypeRoadMaterial",
                 LoadTextureForMode("road_asphalt_runtime_tile_512", CreateRoadTexture(), TextureWrapMode.Repeat),
-                true
+                false
             );
             Material shoulderMaterial = CreateMaterial(
                 "PrototypeShoulderMaterial",
@@ -105,9 +108,7 @@ namespace NewTrip.Client.Road
             roadRenderer.textureRepeat = 3.8f;
             roadRenderer.textureMetersPerRepeat = 44f;
             roadRenderer.useDepthAwareMotion = true;
-            roadRenderer.horizonFadeStartDepth = 0.58f;
-            roadRenderer.horizonAlpha = 0.035f;
-            roadRenderer.farTint = new Color(0.58f, 0.53f, 0.48f, 1f);
+            roadRenderer.ApplyVisualTuningPreset(RoadVisualTuningPreset.BackgroundCompositeSunset);
             roadRenderer.SetMaterial(roadMaterial);
             SetRendererOrder(roadObject, 10);
             roadRenderer.RebuildMesh();
@@ -124,14 +125,17 @@ namespace NewTrip.Client.Road
             GameObject skyLayer = CreateChild(root, "SkyLayer");
             SpriteRenderer skyRenderer = skyLayer.AddComponent<SpriteRenderer>();
             skyRenderer.sprite = skySprite;
+            PixelArtMaterialUtility.ApplyPixelUnlit(skyRenderer);
 
             GameObject farLayer = CreateChild(root, "FarBackgroundLayer");
             SpriteRenderer farRenderer = farLayer.AddComponent<SpriteRenderer>();
             farRenderer.sprite = farSprite;
+            PixelArtMaterialUtility.ApplyPixelUnlit(farRenderer);
 
             GameObject bridgeLayer = CreateChild(root, "BridgeMidgroundLayer");
             SpriteRenderer bridgeRenderer = bridgeLayer.AddComponent<SpriteRenderer>();
             bridgeRenderer.sprite = bridgeSprite;
+            PixelArtMaterialUtility.ApplyPixelUnlit(bridgeRenderer);
 
             GameObject backgroundObject = CreateChild(root, "RoadBackground");
             RoadBackgroundController backgroundController = backgroundObject.AddComponent<RoadBackgroundController>();
@@ -187,6 +191,7 @@ namespace NewTrip.Client.Road
             GameObject weatherObject = CreateChild(root, "WeatherOverlay");
             SpriteRenderer weatherRenderer = weatherObject.AddComponent<SpriteRenderer>();
             weatherRenderer.sortingOrder = 60;
+            PixelArtMaterialUtility.ApplyPixelUnlit(weatherRenderer);
             WeatherOverlayRenderer weatherOverlay = weatherObject.AddComponent<WeatherOverlayRenderer>();
             weatherOverlay.roadRenderer = roadRenderer;
             weatherOverlay.overlayRenderer = weatherRenderer;
@@ -195,14 +200,33 @@ namespace NewTrip.Client.Road
             weatherOverlay.fogSprite = fogSprite;
             weatherOverlay.SetWeather(enableWeatherOverlay ? "haze" : "clear");
 
-            GameObject carObject = CreateChild(root, "PlayerCar");
-            SpriteRenderer carRenderer = carObject.AddComponent<SpriteRenderer>();
+            GameObject carObject = CreateChild(root, "PlayerCarRoot");
+            carObject.transform.localPosition = roadRenderer.ViewportToLocal(
+                new Vector2(RoadViewportContract.CarAnchorX, RoadViewportContract.CarAnchorY),
+                -0.08f
+            );
+            carObject.transform.localScale = Vector3.one * (visualMode == RoadPrototypeVisualMode.PlaceholderOnly ? 4.8f : 0.74f);
+
+            GameObject contactShadowObject = CreateChild(carObject, "ContactShadow");
+            contactShadowObject.transform.localPosition = Vector3.zero;
+            contactShadowObject.transform.localScale = new Vector3(1.72f, 0.78f, 1f);
+            SpriteRenderer contactShadowRenderer = contactShadowObject.AddComponent<SpriteRenderer>();
+            contactShadowRenderer.sprite = carShadowSprite;
+            contactShadowRenderer.sortingOrder = 18;
+            contactShadowRenderer.color = new Color(0.16f, 0.08f, 0.05f, 0.58f);
+            PixelArtMaterialUtility.ApplyPixelUnlit(contactShadowRenderer);
+
+            GameObject carBodyObject = CreateChild(carObject, "CarBody");
+            carBodyObject.transform.localPosition = Vector3.zero;
+            SpriteRenderer carRenderer = carBodyObject.AddComponent<SpriteRenderer>();
             carRenderer.sprite = carSprite;
             carRenderer.sortingOrder = 50;
+            PixelArtMaterialUtility.ApplyPixelUnlit(carRenderer);
+            SpriteRenderer leftWheelCue = CreateWheelCue(carBodyObject, wheelCueSprite, "WheelCueLeft", -0.77f);
+            SpriteRenderer rightWheelCue = CreateWheelCue(carBodyObject, wheelCueSprite, "WheelCueRight", 0.77f);
             CarRearController carController = carObject.AddComponent<CarRearController>();
-            carController.roadRenderer = roadRenderer;
-            carController.anchorViewport = new Vector2(0.5f, 0.105f);
-            carController.baseScale = visualMode == RoadPrototypeVisualMode.PlaceholderOnly ? 1.05f : 0.74f;
+            carController.SetReferences(carBodyObject.transform, contactShadowObject.transform, motionState);
+            carController.SetWheelCues(leftWheelCue, rightWheelCue);
 
             GameObject controllerObject = CreateChild(root, "RoadSceneController");
             RoadSceneController sceneController = controllerObject.AddComponent<RoadSceneController>();
@@ -227,7 +251,7 @@ namespace NewTrip.Client.Road
             RoadDebugOverlay debugOverlay = debugObject.AddComponent<RoadDebugOverlay>();
             debugOverlay.roadRenderer = roadRenderer;
             debugOverlay.showGuides = showDebugOverlay;
-            debugOverlay.carAnchorViewport = carController.anchorViewport;
+            debugOverlay.carAnchorViewport = new Vector2(RoadViewportContract.CarAnchorX, RoadViewportContract.CarAnchorY);
 
             camera.transform.position = new Vector3(0f, 0f, -10f);
             camera.transform.rotation = Quaternion.identity;
@@ -269,25 +293,22 @@ namespace NewTrip.Client.Road
             laneRenderer.roadRenderer = roadRenderer;
             laneRenderer.motionState = motionState;
             laneRenderer.sliceCount = 72;
-            laneRenderer.useRoadRelativeWidth = false;
-            laneRenderer.useDepthViewportWidth = true;
-            laneRenderer.nearLaneHalfWidthViewport = 0.0078f;
-            laneRenderer.farLaneHalfWidthViewport = 0.0008f;
-            laneRenderer.widthDepthCurve = 1f;
-            laneRenderer.minLaneHalfWidth = 0.0025f;
-            laneRenderer.useDepthViewportCenterOffset = true;
-            laneRenderer.nearCenterOffsetViewport = side * 0.014f;
-            laneRenderer.farCenterOffsetViewport = side * 0.0017f;
-            laneRenderer.centerOffsetDepthCurve = 1f;
+            laneRenderer.useRoadRelativeWidth = true;
+            laneRenderer.useDepthViewportWidth = false;
+            laneRenderer.laneWidthRoadRatio = 0.0125f;
+            laneRenderer.minLaneHalfWidth = 0.0012f;
+            laneRenderer.useDepthViewportCenterOffset = false;
+            laneRenderer.centerOffsetRoadRatio = side * 0.032f;
             laneRenderer.textureUMin = 0f;
             laneRenderer.textureUMax = 1f;
             laneRenderer.textureRepeat = 12.5f;
             laneRenderer.textureMetersPerRepeat = 18f;
             laneRenderer.useDepthAwareMotion = true;
             laneRenderer.useHorizonFade = true;
-            laneRenderer.horizonFadeStartDepth = 0.58f;
-            laneRenderer.horizonAlpha = 0.015f;
-            laneRenderer.farTint = new Color(1f, 0.76f, 0.48f, 1f);
+            laneRenderer.horizonFadeStartDepth = 0.55f;
+            laneRenderer.horizonAlpha = 0.01f;
+            laneRenderer.nearTint = new Color(1f, 0.70f, 0.18f, 1f);
+            laneRenderer.farTint = new Color(1f, 0.62f, 0.18f, 1f);
             laneRenderer.SetMaterial(material);
             SetRendererOrder(laneObject, 20);
             laneRenderer.RebuildMesh();
@@ -383,20 +404,9 @@ namespace NewTrip.Client.Road
 
         private Material CreateMaterial(string materialName, Texture2D texture, bool transparent)
         {
-            Shader shader = Shader.Find("Sprites/Default");
-
-            if (shader == null)
-            {
-                shader = Shader.Find(transparent ? "Unlit/Transparent" : "Unlit/Texture");
-            }
-
-            Material material = new Material(shader)
-            {
-                name = materialName,
-                mainTexture = texture
-            };
-            material.SetColor("_Color", Color.white);
-            material.SetInt("_Cull", (int)UnityEngine.Rendering.CullMode.Off);
+            Material material = transparent
+                ? PixelArtMaterialUtility.CreateTransparentMaterial(materialName, texture)
+                : PixelArtMaterialUtility.CreateOpaqueRoadMaterial(materialName, texture);
             ApplyHideFlags(material);
 
             return material;
@@ -453,6 +463,21 @@ namespace NewTrip.Client.Road
             sprite.name = spriteName;
             ApplyHideFlags(sprite);
             return sprite;
+        }
+
+        private static SpriteRenderer CreateWheelCue(GameObject parent, Sprite sprite, string name, float localX)
+        {
+            GameObject wheelCueObject = CreateChild(parent, name);
+            wheelCueObject.transform.localPosition = new Vector3(localX, 0.035f, 0f);
+            wheelCueObject.transform.localScale = new Vector3(1.28f, 1.08f, 1f);
+
+            SpriteRenderer renderer = wheelCueObject.AddComponent<SpriteRenderer>();
+            renderer.sprite = sprite;
+            renderer.sortingOrder = 51;
+            renderer.color = new Color(1f, 1f, 1f, 0f);
+            renderer.enabled = false;
+            PixelArtMaterialUtility.ApplyPixelUnlit(renderer);
+            return renderer;
         }
 
         private static GameObject CreateChild(GameObject parent, string childName)
@@ -610,6 +635,51 @@ namespace NewTrip.Client.Road
             DrawRect(texture, 33, 8, 8, 6, new Color(0.04f, 0.04f, 0.05f, 1f));
             DrawRect(texture, 10, 13, 5, 4, new Color(1f, 0.26f, 0.18f, 1f));
             DrawRect(texture, 33, 13, 5, 4, new Color(1f, 0.26f, 0.18f, 1f));
+
+            texture.Apply();
+            return texture;
+        }
+
+        private static Texture2D CreateCarShadowTexture()
+        {
+            Texture2D texture = NewTexture("PrototypeCarContactShadow", 64, 16, TextureWrapMode.Clamp);
+
+            for (int y = 0; y < texture.height; y++)
+            {
+                for (int x = 0; x < texture.width; x++)
+                {
+                    float nx = (x + 0.5f - texture.width * 0.5f) / (texture.width * 0.5f);
+                    float ny = (y + 0.5f - texture.height * 0.5f) / (texture.height * 0.5f);
+                    float radius = nx * nx + ny * ny * 3.4f;
+                    float alpha = Mathf.Clamp01(1f - radius);
+                    alpha = alpha * alpha * 0.34f;
+                    texture.SetPixel(x, y, new Color(0.05f, 0.025f, 0.015f, alpha));
+                }
+            }
+
+            texture.Apply();
+            return texture;
+        }
+
+        private static Texture2D CreateCarWheelCueTexture()
+        {
+            Texture2D texture = NewTexture("PrototypeCarWheelCue", 32, 56, TextureWrapMode.Clamp);
+            Fill(texture, new Color(0f, 0f, 0f, 0f));
+
+            Color dark = new Color(0.03f, 0.024f, 0.02f, 0f);
+            for (int y = 0; y < texture.height; y++)
+            {
+                for (int x = 0; x < texture.width; x++)
+                {
+                    float nx = Mathf.Abs((x + 0.5f - texture.width * 0.5f) / (texture.width * 0.5f));
+                    float ny = (y + 0.5f) / texture.height;
+                    float sideFade = Mathf.Clamp01(1f - nx);
+                    float bottomFade = Mathf.Clamp01(1f - ny * 0.6f);
+                    float stripe = ((x + y / 2) % 5) < 2 ? 1f : 0.55f;
+                    dark.a = 0.42f * sideFade * bottomFade * stripe;
+                    texture.SetPixel(x, y, dark.a > 0.015f ? dark : new Color(0f, 0f, 0f, 0f));
+                }
+            }
 
             texture.Apply();
             return texture;

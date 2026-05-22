@@ -6,8 +6,8 @@ namespace NewTrip.Client.Road
     [RequireComponent(typeof(Camera))]
     public sealed class RoadPortraitCameraController : MonoBehaviour
     {
-        public float targetWidth = 5.625f;
-        public float targetHeight = 10f;
+        public float targetWidth = RoadViewportContract.WorldWidth;
+        public float targetHeight = RoadViewportContract.WorldHeight;
         public bool letterboxWhenAspectDiffers = true;
         public Color clearColor = Color.black;
 

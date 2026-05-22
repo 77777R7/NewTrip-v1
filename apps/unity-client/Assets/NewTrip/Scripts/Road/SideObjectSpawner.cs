@@ -190,6 +190,7 @@ namespace NewTrip.Client.Road
             spriteRenderer.sprite = entry.sprite;
             spriteRenderer.color = entry.tint;
             spriteRenderer.sortingOrder = 40;
+            spriteRenderer.sharedMaterial = PixelArtMaterialUtility.GetSharedTransparentSpriteMaterial();
 
             SpawnedSideObject sideObject = new SpawnedSideObject(root.transform, spriteRenderer, entry)
             {

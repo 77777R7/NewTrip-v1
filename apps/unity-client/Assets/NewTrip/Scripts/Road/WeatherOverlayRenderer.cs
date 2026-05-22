@@ -76,8 +76,8 @@ namespace NewTrip.Client.Road
                 return;
             }
 
-            float targetWidth = roadRenderer != null ? roadRenderer.renderWidth : 5.625f;
-            float targetHeight = roadRenderer != null ? roadRenderer.renderHeight : 10f;
+            float targetWidth = roadRenderer != null ? roadRenderer.renderWidth : RoadViewportContract.WorldWidth;
+            float targetHeight = roadRenderer != null ? roadRenderer.renderHeight : RoadViewportContract.WorldHeight;
             Bounds bounds = overlayRenderer.sprite.bounds;
             overlayRenderer.transform.localScale = new Vector3(
                 targetWidth / Mathf.Max(0.001f, bounds.size.x),

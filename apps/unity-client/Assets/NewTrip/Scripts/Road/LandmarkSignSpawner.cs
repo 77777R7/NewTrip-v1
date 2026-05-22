@@ -63,6 +63,7 @@ namespace NewTrip.Client.Road
             spriteRenderer.sprite = signSprite;
             spriteRenderer.color = tint;
             spriteRenderer.sortingOrder = 70;
+            spriteRenderer.sharedMaterial = PixelArtMaterialUtility.GetSharedTransparentSpriteMaterial();
 
             SpawnedSign sign = new SpawnedSign(root.transform, spriteRenderer, side)
             {

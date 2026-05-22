@@ -102,12 +102,14 @@ Research update:
 Projection model:
 
 ```text
-horizon_y = 0.56 screen height
-bottom_y = 0.02 screen height
-near_half_width = 0.64 screen width
-horizon_half_width = 0.025 screen width
-depth_curve = 1.65
+horizon_y = 0.66 screen height
+bottom_y = -0.08 screen height
+near_half_width = 0.94 screen width
+horizon_half_width = 0.038 screen width
+depth_curve = 2.45
 ```
+
+These values are the locked Step 1 portrait driving angle from `docs/client/unity-portrait-coordinate-contract-v1.md` and `RoadViewportContract`. Backgrounds, car placement, side-object spawning, and HUD layout should align to this horizon instead of retuning the road per layer.
 
 For each road slice:
 
@@ -129,7 +131,40 @@ uv_scroll += visual_speed * delta_time
 visual_speed = clamp(server_speed_kmph / 72, 0, 1.35)
 ```
 
-This is a prototype baseline only. `visual_speed` affects animation only. Server state still determines actual progress. The next implementation should replace independent scroll timers with a shared `RoadMotionState.visualDistanceM` consumed by road, lane, shoulder, roadside props, signs, and weather.
+This is a prototype baseline only. `visual_speed` affects animation only. Server state still determines actual progress. The Unity Road Lock Pass now requires a shared `RoadMotionState.visualDistanceMeters` consumed by road, lane, edge, and future spawners. Independent scroll clocks are not allowed for production prototypes.
+
+Road visual tuning:
+
+- The base asphalt road pass must be visually opaque. Do not fade the road mesh alpha to blend it into the horizon.
+- Big Sur sunset composites should use warm brown/orange vertex tint presets on the road material, not black debug asphalt.
+- Horizon softness should come from the dedicated low-alpha `HorizonHazeLayer`, not transparent road geometry. The current Step 4 review asset is `Assets/NewTrip/Art/ScenePacks/CaliforniaHwy1/BigSurSunset/Background/horizon_haze_warm_v01.png`.
+- Current review presets are:
+
+```text
+A Warm Balanced: near (0.82, 0.67, 0.55, 1), far (0.70, 0.56, 0.50, 1)
+B Sunset Warm:   near (0.95, 0.72, 0.52, 1), far (0.78, 0.58, 0.48, 1)
+C Darker Natural:near (0.68, 0.56, 0.48, 1), far (0.58, 0.50, 0.46, 1)
+```
+
+The asphalt material should use the opaque road shader (`NewTrip/RoadOpaqueVertexColor`) so texture alpha cannot make the road transparent. Yellow lane and white edge markings may still use alpha materials.
+
+Step 5 Road Lock Pass:
+
+- Contract doc: `docs/client/unity-road-lock-pass-v1.md`.
+- Unity menu: `NewTrip/Road Prototype/Capture Step 5 Road Lock Pass`.
+- Road geometry stays code-generated from slices; do not use a full-road image.
+- The active visual review uses `RoadProjectionPreset.GeminiLowCamera` as the low-camera/upper-third-horizon contract, while preserving the 9:16 portrait frame.
+- Accepted lane preset is RoadOnly B: two road-relative projected yellow-line meshes.
+- Road, yellow lines, white edge lines, and future side spawners must share `RoadMotionState.visualDistanceMeters`.
+- Horizon softness comes from `HorizonHazeLayer`, not road alpha.
+
+Step 6 CarAnchorTest:
+
+- Contract doc: `docs/client/unity-car-anchor-test-v1.md`.
+- Unity menu: `NewTrip/Road Prototype/Capture Step 6 CarAnchorTest`.
+- The car is fixed at `car_anchor_x = 0.50`, `car_anchor_y = 0.105`.
+- The accepted starting car scale candidate is `0.56` for the cleaned `car_rear_view_clean` rear sprite.
+- This gate validates the car tire baseline, scale, contact shadow, and 10-second road motion under a fixed car. It must not add UI, bridge, props, signs, guardrails, weather, shoulders, or a full-road image.
 
 ### `LaneMarkingRenderer`
 

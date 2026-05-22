@@ -10,10 +10,10 @@ namespace NewTrip.Client.Road
 
         public Pseudo3DRoadRenderer roadRenderer;
         public bool showGuides = true;
-        public Vector2 carAnchorViewport = new Vector2(0.5f, 0.105f);
+        public Vector2 carAnchorViewport = new Vector2(RoadViewportContract.CarAnchorX, RoadViewportContract.CarAnchorY);
 
         [Range(0f, 1f)]
-        public float hudSafeTopViewportY = 0.86f;
+        public float hudSafeTopViewportY = RoadViewportContract.HudSafeTopY;
 
         [Range(0f, 0.8f)]
         public float spawnLaneOffset = 0.28f;
@@ -183,7 +183,7 @@ namespace NewTrip.Client.Road
                 return;
             }
 
-            Shader shader = Shader.Find("Sprites/Default");
+            Shader shader = PixelArtMaterialUtility.FindTransparentShader();
 
             if (shader == null)
             {

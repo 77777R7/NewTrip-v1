@@ -2,6 +2,16 @@ using UnityEngine;
 
 namespace NewTrip.Client.Road
 {
+    public enum RoadVisualTuningPreset
+    {
+        RoadOnlyDebug,
+        BigSurSunsetWarmBalanced,
+        BigSurSunsetWarm,
+        BigSurSunsetDarkerNatural,
+        BigSurSunsetAtmosphericBlend,
+        BackgroundCompositeSunset
+    }
+
     [ExecuteAlways]
     [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
     public sealed class Pseudo3DRoadRenderer : MonoBehaviour
@@ -10,14 +20,14 @@ namespace NewTrip.Client.Road
 
         public RoadMotionState motionState;
         public RoadProjectionSettings projection = new RoadProjectionSettings();
-        public RoadProjectionPreset projectionPreset = RoadProjectionPreset.BigSurPrototype;
+        public RoadProjectionPreset projectionPreset = RoadProjectionPreset.GeminiLowCamera;
         public bool applyProjectionPresetOnRebuild = true;
 
         [Range(8, 96)]
         public int sliceCount = 48;
 
-        public float renderWidth = 5.625f;
-        public float renderHeight = 10f;
+        public float renderWidth = RoadViewportContract.WorldWidth;
+        public float renderHeight = RoadViewportContract.WorldHeight;
         public float textureRepeat = 7f;
         public float textureOffset;
         public float textureMetersPerRepeat = 18f;
@@ -44,6 +54,10 @@ namespace NewTrip.Client.Road
         [Range(0.25f, 4f)]
         public float motionDepthCurve = 1.35f;
 
+        [Header("Road Visual Tuning")]
+        [Tooltip("Named review presets for road color only. These do not change road geometry.")]
+        public RoadVisualTuningPreset visualTuningPreset = RoadVisualTuningPreset.BigSurSunsetWarmBalanced;
+
         public bool useHorizonFade = true;
 
         [Range(0f, 1f)]
@@ -54,6 +68,15 @@ namespace NewTrip.Client.Road
 
         public Color nearTint = new Color(0.27f, 0.26f, 0.27f, 1f);
         public Color farTint = new Color(0.34f, 0.27f, 0.28f, 1f);
+
+        [Tooltip("For opaque road materials, encode sunset atmosphere as vertex alpha without making the road transparent.")]
+        public bool useHorizonColorWash;
+
+        [Range(0f, 1f)]
+        public float horizonColorWashStartDepth = 0.80f;
+
+        [Range(0f, 1f)]
+        public float horizonColorWashStrength = 0.65f;
 
         private MeshFilter meshFilter;
         private MeshRenderer meshRenderer;
@@ -162,6 +185,48 @@ namespace NewTrip.Client.Road
             ApplyTextureMotion();
         }
 
+        public void ApplyVisualTuningPreset(RoadVisualTuningPreset preset)
+        {
+            visualTuningPreset = preset;
+            useHorizonFade = false;
+            horizonAlpha = 1f;
+            useHorizonColorWash = false;
+
+            switch (preset)
+            {
+                case RoadVisualTuningPreset.RoadOnlyDebug:
+                    nearTint = new Color(0.74f, 0.62f, 0.52f, 1f);
+                    farTint = new Color(0.62f, 0.53f, 0.49f, 1f);
+                    break;
+                case RoadVisualTuningPreset.BigSurSunsetWarm:
+                    nearTint = new Color(0.95f, 0.72f, 0.52f, 1f);
+                    farTint = new Color(0.78f, 0.58f, 0.48f, 1f);
+                    break;
+                case RoadVisualTuningPreset.BigSurSunsetDarkerNatural:
+                    nearTint = new Color(0.68f, 0.56f, 0.48f, 1f);
+                    farTint = new Color(0.58f, 0.50f, 0.46f, 1f);
+                    break;
+                case RoadVisualTuningPreset.BigSurSunsetAtmosphericBlend:
+                    // Route-composite preset: keep the asphalt opaque while letting the
+                    // far road pick up sunset bounce light before HorizonHazeLayer softens it.
+                    nearTint = new Color(0.78f, 0.58f, 0.46f, 1f);
+                    farTint = new Color(0.90f, 0.66f, 0.52f, 1f);
+                    useHorizonColorWash = true;
+                    horizonColorWashStartDepth = 0.80f;
+                    horizonColorWashStrength = 0.46f;
+                    break;
+                case RoadVisualTuningPreset.BackgroundCompositeSunset:
+                    nearTint = new Color(0.86f, 0.66f, 0.50f, 1f);
+                    farTint = new Color(0.74f, 0.55f, 0.47f, 1f);
+                    break;
+                case RoadVisualTuningPreset.BigSurSunsetWarmBalanced:
+                default:
+                    nearTint = new Color(0.82f, 0.67f, 0.55f, 1f);
+                    farTint = new Color(0.70f, 0.56f, 0.50f, 1f);
+                    break;
+            }
+        }
+
         public void RebuildMesh()
         {
             EnsureComponents();
@@ -189,6 +254,12 @@ namespace NewTrip.Client.Road
                 {
                     float fadeT = Mathf.InverseLerp(horizonFadeStartDepth, 1f, depth);
                     vertexColor.a *= Mathf.Lerp(1f, horizonAlpha, Mathf.Clamp01(fadeT));
+                }
+
+                if (useHorizonColorWash)
+                {
+                    float washT = Mathf.InverseLerp(horizonColorWashStartDepth, 1f, depth);
+                    vertexColor.a = Mathf.Min(vertexColor.a, 1f - Mathf.Clamp01(washT) * horizonColorWashStrength);
                 }
 
                 vertices[leftIndex] = sample.PointAt(-1f);

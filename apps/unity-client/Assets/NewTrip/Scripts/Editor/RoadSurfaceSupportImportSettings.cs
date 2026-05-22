@@ -69,13 +69,23 @@ namespace NewTrip.Client.Editor
             importer.textureCompression = TextureImporterCompression.Uncompressed;
             importer.alphaIsTransparency = alphaIsTransparency;
             importer.alphaSource = TextureImporterAlphaSource.FromInput;
+            ApplyPlatform(importer, "DefaultTexturePlatform");
+            ApplyPlatform(importer, "Standalone");
+            ApplyPlatform(importer, "iPhone");
+            ApplyPlatform(importer, "Android");
+        }
+
+        private static void ApplyPlatform(TextureImporter importer, string buildTarget)
+        {
             importer.SetPlatformTextureSettings(new TextureImporterPlatformSettings
             {
-                name = "Standalone",
+                name = buildTarget,
                 overridden = true,
-                maxTextureSize = 2048,
+                maxTextureSize = 4096,
                 format = TextureImporterFormat.RGBA32,
-                textureCompression = TextureImporterCompression.Uncompressed
+                textureCompression = TextureImporterCompression.Uncompressed,
+                crunchedCompression = false,
+                compressionQuality = 100
             });
         }
     }

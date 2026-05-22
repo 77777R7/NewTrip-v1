@@ -62,8 +62,8 @@ namespace NewTrip.Client.Road
 
         public void ApplyLayout()
         {
-            float width = roadRenderer != null ? roadRenderer.renderWidth : 5.625f;
-            float height = roadRenderer != null ? roadRenderer.renderHeight : 10f;
+            float width = roadRenderer != null ? roadRenderer.renderWidth : RoadViewportContract.WorldWidth;
+            float height = roadRenderer != null ? roadRenderer.renderHeight : RoadViewportContract.WorldHeight;
             bool midgroundAllowed = showMidgroundLandmark;
 
             if (enforceDrivingLayerPolicy && activeSegment == RoadVisualSegmentKey.CoastalCliffsSunset)
@@ -110,8 +110,8 @@ namespace NewTrip.Client.Road
                 return;
             }
 
-            float renderWidth = roadRenderer != null ? roadRenderer.renderWidth : 5.625f;
-            float renderHeight = roadRenderer != null ? roadRenderer.renderHeight : 10f;
+            float renderWidth = roadRenderer != null ? roadRenderer.renderWidth : RoadViewportContract.WorldWidth;
+            float renderHeight = roadRenderer != null ? roadRenderer.renderHeight : RoadViewportContract.WorldHeight;
             Vector3 anchor = roadRenderer != null
                 ? roadRenderer.ViewportToLocal(anchorViewport, z)
                 : new Vector3((anchorViewport.x - 0.5f) * renderWidth, (anchorViewport.y - 0.5f) * renderHeight, z);

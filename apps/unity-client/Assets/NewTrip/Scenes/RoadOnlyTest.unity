@@ -1343,7 +1343,7 @@ MonoBehaviour:
     horizonHalfWidth: 0.038
     depthCurve: 2.45
     centerX: 0.5
-  projectionPreset: 3
+  projectionPreset: 4
   applyProjectionPresetOnRebuild: 1
   sliceCount: 72
   renderWidth: 5.625
@@ -2044,7 +2044,7 @@ MonoBehaviour:
     horizonHalfWidth: 0.038
     depthCurve: 2.45
     centerX: 0.5
-  projectionPreset: 3
+  projectionPreset: 4
   applyProjectionPresetOnRebuild: 1
   sliceCount: 72
   renderWidth: 5.625

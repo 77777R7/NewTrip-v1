@@ -17,10 +17,20 @@ namespace NewTrip.Client.Road
         public int maxActiveObjects = 40;
 
         [Range(0.2f, 1f)]
-        public float spawnDepth = 0.86f;
+        public float spawnDepth = 1f;
 
-        [Range(-0.3f, 0.2f)]
-        public float despawnDepth = -0.08f;
+        [Range(0f, 0.2f)]
+        public float despawnDepth;
+
+        [Header("Projection Contract")]
+        [Tooltip("Matches the accepted side-object perspective contract: scale = baseScale * (1 - pow(depthT, 2.45)).")]
+        public float sideObjectPerspectiveCurve = 2.45f;
+
+        [Tooltip("Compensates non bottom-center imported sprite pivots by placing the SpriteRenderer on a child transform.")]
+        public bool forceBottomCenterAnchor = true;
+
+        [Tooltip("Dynamic sprite sorting range. Contract default is RoundToInt((1 - depthT) * 1000).")]
+        public int sortingOrderRange = 1000;
 
         private readonly List<SpawnedSideObject> activeObjects = new List<SpawnedSideObject>();
         private System.Random random;
@@ -62,7 +72,7 @@ namespace NewTrip.Client.Road
                 SpawnedSideObject sideObject = activeObjects[i];
                 sideObject.Depth -= Time.deltaTime * moveRate * Mathf.Max(0.1f, sideObject.Entry.parallaxSpeed);
 
-                if (sideObject.Depth < -0.08f)
+                if (sideObject.Depth <= despawnDepth)
                 {
                     DestroyObject(sideObject.Root.gameObject);
                     activeObjects.RemoveAt(i);
@@ -133,7 +143,7 @@ namespace NewTrip.Client.Road
                 SpawnedSideObject sideObject = activeObjects[i];
                 sideObject.Depth = DepthFromDistance(sideObject, currentDistance);
 
-                if (sideObject.Depth < despawnDepth)
+                if (sideObject.Depth <= despawnDepth)
                 {
                     DestroyObject(sideObject.Root.gameObject);
                     activeObjects.RemoveAt(i);
@@ -186,16 +196,28 @@ namespace NewTrip.Client.Road
             GameObject root = new GameObject("SideObject_" + entry.spriteId);
             root.transform.SetParent(parent, false);
 
-            SpriteRenderer spriteRenderer = root.AddComponent<SpriteRenderer>();
+            Transform rendererTransform = root.transform;
+
+            if (forceBottomCenterAnchor)
+            {
+                GameObject visual = new GameObject("Sprite");
+                visual.transform.SetParent(root.transform, false);
+                rendererTransform = visual.transform;
+            }
+
+            SpriteRenderer spriteRenderer = rendererTransform.gameObject.AddComponent<SpriteRenderer>();
             spriteRenderer.sprite = entry.sprite;
             spriteRenderer.color = entry.tint;
-            spriteRenderer.sortingOrder = 40;
+            spriteRenderer.sortingOrder = SortingOrderAtDepth(spawnDepth);
             spriteRenderer.sharedMaterial = PixelArtMaterialUtility.GetSharedTransparentSpriteMaterial();
+
+            ApplyBottomCenterCompensation(spriteRenderer, rendererTransform);
 
             SpawnedSideObject sideObject = new SpawnedSideObject(root.transform, spriteRenderer, entry)
             {
                 Depth = spawnDepth,
-                SpawnDistanceMeters = spawnDistanceMeters
+                SpawnDistanceMeters = spawnDistanceMeters,
+                LateralRoadOffset = LateralOffsetFor(entry)
             };
 
             activeObjects.Add(sideObject);
@@ -218,13 +240,12 @@ namespace NewTrip.Client.Road
 
             float sideSign = sideObject.Entry.side == RoadsideSide.Left ? -1f : 1f;
             RoadProjectionSample sample = roadRenderer.Sample(sideObject.Depth);
-            float outsideOffset = 1f + Mathf.Max(0f, sideObject.Entry.laneOffset);
-            float x = sample.CenterX + sample.HalfWidth * outsideOffset * sideSign;
-            float scale = Mathf.Lerp(sideObject.Entry.nearScale, sideObject.Entry.farScale, Mathf.Clamp01(sideObject.Depth));
+            float x = sample.CenterX + sample.HalfWidth * sideObject.LateralRoadOffset * sideSign;
+            float scale = ScaleAtDepth(sideObject.Depth, sideObject.Entry.nearScale);
 
             sideObject.Root.localPosition = new Vector3(x, sample.Y, -0.04f);
             sideObject.Root.localScale = Vector3.one * scale;
-            sideObject.Renderer.sortingOrder = sideObject.Depth < 0.35f ? 65 : 35;
+            sideObject.Renderer.sortingOrder = SortingOrderAtDepth(sideObject.Depth);
         }
 
         private void ApplyAllProjections(float currentDistanceMeters)
@@ -254,6 +275,50 @@ namespace NewTrip.Client.Road
             travelled *= Mathf.Max(0.1f, sideObject.Entry.parallaxSpeed);
             float progress = travelled / DepthTravelMeters();
             return Mathf.Lerp(spawnDepth, despawnDepth, progress);
+        }
+
+        private float LateralOffsetFor(RoadsideSpawnEntry entry)
+        {
+            float min = 0f;
+            float max = 0f;
+            float shoulderOuterOffset = 1.18f;
+
+            if (profile != null)
+            {
+                shoulderOuterOffset = Mathf.Max(1f, profile.shoulderOuterRoadOffset);
+                min = Mathf.Min(profile.lateralJitterRoadOffsets.x, profile.lateralJitterRoadOffsets.y);
+                max = Mathf.Max(profile.lateralJitterRoadOffsets.x, profile.lateralJitterRoadOffsets.y);
+            }
+
+            float jitter = Mathf.Lerp(min, max, (float)random.NextDouble());
+            return shoulderOuterOffset + Mathf.Max(0f, entry.laneOffset) + Mathf.Max(0f, jitter);
+        }
+
+        private float ScaleAtDepth(float depthT, float baseScale)
+        {
+            float perspectiveT = Mathf.Pow(Mathf.Clamp01(depthT), Mathf.Max(0.01f, sideObjectPerspectiveCurve));
+            return Mathf.Max(0f, baseScale) * Mathf.Clamp01(1f - perspectiveT);
+        }
+
+        private int SortingOrderAtDepth(float depthT)
+        {
+            return Mathf.RoundToInt((1f - Mathf.Clamp01(depthT)) * Mathf.Max(1, sortingOrderRange));
+        }
+
+        private static void ApplyBottomCenterCompensation(SpriteRenderer spriteRenderer, Transform rendererTransform)
+        {
+            if (spriteRenderer == null || rendererTransform == null || spriteRenderer.sprite == null)
+            {
+                return;
+            }
+
+            Bounds bounds = spriteRenderer.sprite.bounds;
+            Vector3 bottomCenter = new Vector3(
+                (bounds.min.x + bounds.max.x) * 0.5f,
+                bounds.min.y,
+                0f
+            );
+            rendererTransform.localPosition = -bottomCenter;
         }
 
         private float DepthTravelMeters()
@@ -326,6 +391,8 @@ namespace NewTrip.Client.Road
             public float Depth { get; set; }
 
             public float SpawnDistanceMeters { get; set; }
+
+            public float LateralRoadOffset { get; set; }
         }
     }
 }

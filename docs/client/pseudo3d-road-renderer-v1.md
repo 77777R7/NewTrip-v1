@@ -102,14 +102,14 @@ Research update:
 Projection model:
 
 ```text
-horizon_y = 0.66 screen height
-bottom_y = -0.08 screen height
-near_half_width = 0.94 screen width
-horizon_half_width = 0.038 screen width
-depth_curve = 2.45
+horizon_y = 0.60 screen height
+bottom_y = -0.06 screen height
+near_half_width = 0.86 screen width
+horizon_half_width = 0.014 screen width
+depth_curve = 2.05
 ```
 
-These values are the locked Step 1 portrait driving angle from `docs/client/unity-portrait-coordinate-contract-v1.md` and `RoadViewportContract`. Backgrounds, car placement, side-object spawning, and HUD layout should align to this horizon instead of retuning the road per layer.
+These values are the accepted Reference Gentle Road angle from `docs/client/unity-portrait-coordinate-contract-v1.md` and `RoadViewportContract`. Backgrounds, car placement, side-object spawning, and HUD layout should align to this horizon instead of retuning the road per layer.
 
 For each road slice:
 
@@ -153,10 +153,17 @@ Step 5 Road Lock Pass:
 - Contract doc: `docs/client/unity-road-lock-pass-v1.md`.
 - Unity menu: `NewTrip/Road Prototype/Capture Step 5 Road Lock Pass`.
 - Road geometry stays code-generated from slices; do not use a full-road image.
-- The active visual review uses `RoadProjectionPreset.GeminiLowCamera` as the low-camera/upper-third-horizon contract, while preserving the 9:16 portrait frame.
+- The active visual review uses `RoadProjectionPreset.ReferenceGentleRoad`, promoted from Road Perspective Review candidate B after the user accepted the less-steep road angle.
 - Accepted lane preset is RoadOnly B: two road-relative projected yellow-line meshes.
 - Road, yellow lines, white edge lines, and future side spawners must share `RoadMotionState.visualDistanceMeters`.
 - Horizon softness comes from `HorizonHazeLayer`, not road alpha.
+
+Road Perspective Review Pass:
+
+- Contract doc: `docs/client/unity-road-perspective-review-pass-v1.md`.
+- Unity menu: `NewTrip/Road Prototype/Capture Road Perspective Review Pass`.
+- This is a projection-only A/B/C gate for judging whether the locked road reads too steep, too short, or too platform-like.
+- Candidate B (`RoadProjectionPreset.ReferenceGentleRoad`) is now the accepted active road projection. Candidate C (`RoadProjectionPreset.LongCoastRoad`) remains only as an art-direction comparison.
 
 Step 6 CarAnchorTest:
 
@@ -224,19 +231,31 @@ Roadside sprites and sign sprites must use bottom-center pivots. The projected p
 Projection:
 
 ```text
-screen_y = road_y_at_depth(spawn_depth)
-road_half_width = road_width_at_depth(spawn_depth)
+screen_y = road_y_at_depth(depthT)
+road_half_width = road_width_at_depth(depthT)
 side_anchor_x = center_x +/- road_half_width
-screen_x = side_anchor_x + lane_offset * road_half_width
-scale = base_scale * perspective_scale_at_depth(spawn_depth)
+screen_x = center_x +/- road_half_width * outside_shoulder_offset
+perspective_t = pow(depthT, 2.45)
+scale = base_scale * (1.0 - perspective_t)
+sorting_order = round((1.0 - depthT) * 1000)
 ```
+
+Implementation lock:
+
+- `SideObjectSpawner` must call `Pseudo3DRoadRenderer.Sample(depthT)` for X/Y projection.
+- Runtime side objects spawn at `depthT = 1.0` near the horizon and despawn at `depthT = 0.0` near the screen bottom.
+- Side object X placement is road-space offset outside the road/shoulder, not direct screen coordinates.
+- Runtime side objects compensate imported sprite pivots so the visible bottom-center sits on the projected ground point.
+- First review asset: `Assets/NewTrip/Art/ExtractedSprites/roadside_guardrail_low_wooden_01.png`.
+- First review scene/menu: `NewTrip > Road Prototype > Create SideObject Guardrail Review Scene`.
+- First capture menu: `NewTrip > Road Prototype > Capture SideObject Guardrail Review`.
 
 Lifecycle:
 
-- spawn near horizon;
-- move toward bottom as `spawn_depth` decreases;
+- spawn at `depthT = 1.0`;
+- move toward bottom as `depthT` decreases;
 - increase scale as the object approaches;
-- despawn below screen.
+- despawn at `depthT = 0.0`.
 
 ### `LandmarkSignSpawner`
 

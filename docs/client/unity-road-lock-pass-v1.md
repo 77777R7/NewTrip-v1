@@ -6,7 +6,7 @@ Step 5 freezes the procedural road as the production prototype contract. This ga
 
 - Frame: 9:16 portrait.
 - World size: `RoadViewportContract.WorldWidth = 5.625`, `RoadViewportContract.WorldHeight = 10.0`.
-- Horizon: `road_horizon_y = 0.66`.
+- Horizon: `road_horizon_y = 0.60`.
 - Future car anchor: `car_anchor_y = 0.105`.
 - Depth convention: `depth = 1.0` is the far horizon, `depth = 0.0` is the near bottom.
 - Geometry source: procedural road mesh slices, aligned with the Jake Gordon pseudo-3D road idea of projecting each segment's near/far points to screen and drawing road/lane polygons.
@@ -70,8 +70,8 @@ Required outputs:
 - Motion uses a shared visual distance source.
 - No full-road image is used.
 
-## Low-Camera Projection Candidate
+## Accepted Road Projection
 
-`RoadProjectionPreset.GeminiLowCamera` is now the active road projection after the Gemini review note. It keeps the same procedural mesh and RoadOnly B lane contract, but raises the vanishing point toward the upper third and increases the exponential depth curve for a lower-camera pseudo-3D feel.
+`RoadProjectionPreset.ReferenceGentleRoad` is now the active road projection after the user selected Road Perspective Review candidate B. It keeps the same procedural mesh and RoadOnly B lane contract, but reduces the ramp-like pitch and road-tip platform while preserving a long forward road feel.
 
 RoadOnly capture writes the legacy accepted B filenames with this projection so Unity review judges the current contract directly.

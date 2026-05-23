@@ -19,7 +19,7 @@ namespace NewTrip.Client.Editor
         private const int CaptureWidth = 1080;
         private const int CaptureHeight = 1920;
         private const bool UseAcceptedWideRoadRelativeYellow = true;
-        private const RoadProjectionPreset ActiveProductionCandidateProjection = RoadProjectionPreset.GeminiLowCamera;
+        private const RoadProjectionPreset ActiveProductionCandidateProjection = RoadProjectionPreset.ReferenceGentleRoad;
 
         [MenuItem("NewTrip/Road Prototype/Create RoadOnlyTest Scene")]
         public static void CreateRoadOnlyTestScene()

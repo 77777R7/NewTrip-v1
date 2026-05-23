@@ -19,7 +19,7 @@ namespace NewTrip.Client.Editor
                 ScenePath,
                 RoadPrototypeVisualMode.PlaceholderOnly,
                 enableImportedLayers: false,
-                "Created placeholder RoadPrototype scene with GeminiLowCamera projection. Press Play to validate road/camera/car anchors before enabling imported assets."
+                "Created placeholder RoadPrototype scene with ReferenceGentleRoad projection. Press Play to validate road/camera/car anchors before enabling imported assets."
             );
         }
 
@@ -48,7 +48,7 @@ namespace NewTrip.Client.Editor
             RoadPrototypeBootstrap bootstrap = bootstrapObject.AddComponent<RoadPrototypeBootstrap>();
             bootstrap.visualMode = visualMode;
             bootstrap.activeSegment = RoadVisualSegmentKey.CoastalCliffsSunset;
-            bootstrap.projectionPreset = RoadProjectionPreset.GeminiLowCamera;
+            bootstrap.projectionPreset = RoadProjectionPreset.ReferenceGentleRoad;
             bootstrap.showDebugOverlay = true;
             bootstrap.enableFarBackgroundLayer = enableImportedLayers;
             bootstrap.enableRoadsideSpawner = true;

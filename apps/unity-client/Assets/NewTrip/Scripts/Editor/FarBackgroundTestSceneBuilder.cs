@@ -751,7 +751,7 @@ namespace NewTrip.Client.Editor
                 "- Road: code-generated mesh slices, not a full-road image.\n" +
                 "- Road depth: `1.0 = far horizon`, `0.0 = near bottom`.\n" +
                 "- Base road horizon contract: `" + RoadViewportContract.RoadHorizonY.ToString("0.00") + "` viewport Y.\n" +
-                "- Active projection: `RoadProjectionPreset.GeminiLowCamera` for the lower-camera / upper-third-horizon feel.\n" +
+                "- Active projection: `RoadProjectionPreset.ReferenceGentleRoad` for the accepted less-steep road perspective.\n" +
                 "- Future car anchor: `0.105` viewport Y.\n" +
                 "- Asphalt: opaque runtime tile with width-based UV repeat.\n" +
                 "- Lane: accepted RoadOnly B road-relative double-yellow preset.\n" +

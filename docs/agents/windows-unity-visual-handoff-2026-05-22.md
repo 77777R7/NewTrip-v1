@@ -66,11 +66,11 @@ frame = 9:16 portrait
 world_width = 5.625
 world_height = 10.0
 center_x = 0.50
-road_horizon_y = 0.66
-road_bottom_y = -0.08
-road_near_half_width = 0.94
-road_horizon_half_width = 0.038
-road_depth_curve = 2.45
+road_horizon_y = 0.60
+road_bottom_y = -0.06
+road_near_half_width = 0.86
+road_horizon_half_width = 0.014
+road_depth_curve = 2.05
 car_anchor_x = 0.50
 car_anchor_y = 0.105
 hud_safe_top_y = 0.86+
@@ -199,34 +199,32 @@ Generated capture artifacts are local review outputs and are ignored:
 
 Regenerate captures with the Unity menu paths above. Do not assume these folders exist after a fresh clone.
 
-## Immediate Next Step
+## Road Perspective Selection
 
-Next gate: Road Perspective Review Pass.
+Road Perspective Review Pass has been run and candidate B was selected by the user as the active road angle.
 
-Problem observed by the user:
+Contract doc: `docs/client/unity-road-perspective-review-pass-v1.md`.
 
-- the current road has the right triangular pseudo-3D idea, but it feels too pitched upward;
-- the road feels visually short compared with the reference;
-- the reference road feels flatter, longer, and more integrated with the distant horizon.
-
-Do not start by adding scenery. First A/B/C the road projection while keeping the existing materials, car, sky, far background, sun, and haze.
-
-Candidate projections to test:
+Accepted active projection:
 
 ```text
-A Current Baseline
-horizon_y = 0.66
-bottom_y = -0.08
-near_half_width = 0.94
-horizon_half_width = 0.038
-depth_curve = 2.45
-
 B Reference Gentle Road
 horizon_y = 0.60
 bottom_y = -0.06
 near_half_width = 0.86
 horizon_half_width = 0.014
 depth_curve = 2.05
+```
+
+Historical comparison projections:
+
+```text
+A Previous Gemini Baseline
+horizon_y = 0.66
+bottom_y = -0.08
+near_half_width = 0.94
+horizon_half_width = 0.038
+depth_curve = 2.45
 
 C Long Coast Road
 horizon_y = 0.57
@@ -236,7 +234,9 @@ horizon_half_width = 0.010
 depth_curve = 1.85
 ```
 
-Acceptance for the next gate:
+Do not switch back to A or C unless the user explicitly reopens road-angle review. Future car, background, and spawner work should align to candidate B.
+
+Road angle acceptance:
 
 - road feels flatter and longer than current baseline;
 - car still sits on the road at `car_anchor_y = 0.105`;
@@ -246,15 +246,14 @@ Acceptance for the next gate:
 - no full-road image is introduced;
 - no new props, UI, weather, bridge, signs, trees, or guardrails are added.
 
-Recommended capture outputs:
+Review capture outputs:
 
-- baseline current still
-- candidate B still and 10-second motion
-- candidate C still and 10-second motion
-- car contact close-up for the selected candidate
-- horizon close-up for the selected candidate
+- `apps/unity-client/Artifacts/RoadPerspectiveReview/road_perspective_a_current_baseline_*.png`
+- `apps/unity-client/Artifacts/RoadPerspectiveReview/road_perspective_b_reference_gentle_road_*.png`
+- `apps/unity-client/Artifacts/RoadPerspectiveReview/road_perspective_c_long_coast_road_*.png`
+- `apps/unity-client/Artifacts/RoadPerspectiveReview/road_perspective_review_report.md`
 
-After a candidate is selected, update `RoadViewportContract` and the docs together. Do not leave code and contract docs out of sync.
+`RoadViewportContract` and the docs have been updated together so code and contract remain in sync.
 
 ## Product Scope Reminder
 

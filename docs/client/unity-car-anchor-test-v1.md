@@ -29,7 +29,7 @@ Not allowed:
 
 ```text
 frame = 9:16 portrait
-road_horizon_y = 0.66
+road_horizon_y = 0.60
 car_anchor_x = 0.50
 car_anchor_y = 0.105
 ```

@@ -8,11 +8,11 @@ namespace NewTrip.Client.Road
         public const float WorldWidth = 5.625f;
         public const float WorldHeight = 10f;
         public const float CenterX = 0.5f;
-        public const float RoadHorizonY = 0.66f;
-        public const float RoadBottomY = -0.08f;
-        public const float RoadNearHalfWidth = 0.94f;
-        public const float RoadHorizonHalfWidth = 0.038f;
-        public const float RoadDepthCurve = 2.45f;
+        public const float RoadHorizonY = 0.60f;
+        public const float RoadBottomY = -0.06f;
+        public const float RoadNearHalfWidth = 0.86f;
+        public const float RoadHorizonHalfWidth = 0.014f;
+        public const float RoadDepthCurve = 2.05f;
         public const float CarAnchorX = 0.5f;
         public const float CarAnchorY = 0.105f;
         public const float HudSafeTopY = 0.86f;
@@ -23,7 +23,9 @@ namespace NewTrip.Client.Road
         ContractDefault,
         BigSurPrototype,
         WideDebug,
-        GeminiLowCamera
+        GeminiLowCamera,
+        ReferenceGentleRoad,
+        LongCoastRoad
     }
 
     [Serializable]
@@ -70,10 +72,36 @@ namespace NewTrip.Client.Road
                     break;
 
                 case RoadProjectionPreset.GeminiLowCamera:
-                    // Current OutRun-style production prototype angle based on the Gemini note:
-                    // raise the vanishing point toward the upper third and use a stronger
-                    // exponential depth curve so far slices compress and near slices stretch.
-                    ApplyContractDefault();
+                    // Historical Road Perspective Review A baseline. Keep this explicit so
+                    // accepted candidate B can become the contract without losing comparison.
+                    centerX = 0.5f;
+                    horizonY = 0.66f;
+                    bottomY = -0.08f;
+                    nearHalfWidth = 0.94f;
+                    horizonHalfWidth = 0.038f;
+                    depthCurve = 2.45f;
+                    break;
+
+                case RoadProjectionPreset.ReferenceGentleRoad:
+                    // Road Perspective Review B. Keeps the current lower-camera feel but
+                    // reduces the short-ramp/platform read against the Big Sur reference.
+                    centerX = 0.5f;
+                    horizonY = 0.60f;
+                    bottomY = -0.06f;
+                    nearHalfWidth = 0.86f;
+                    horizonHalfWidth = 0.014f;
+                    depthCurve = 2.05f;
+                    break;
+
+                case RoadProjectionPreset.LongCoastRoad:
+                    // Road Perspective Review C. A flatter, longer coast-road candidate
+                    // kept as an art-direction comparison, not the active production lock.
+                    centerX = 0.5f;
+                    horizonY = 0.57f;
+                    bottomY = -0.05f;
+                    nearHalfWidth = 0.80f;
+                    horizonHalfWidth = 0.010f;
+                    depthCurve = 1.85f;
                     break;
 
                 default:

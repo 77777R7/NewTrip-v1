@@ -66,10 +66,13 @@ sign_blue_arrow_blank
 roadside_rock_01
 roadside_bush_01
 roadside_guardrail_01
+roadside_guardrail_low_wooden_01
 weather_haze_clouds
 ```
 
 Do not cut the full sheets yet. A small clean set is enough to validate road projection, car anchor, side spawner scale, and sign placement.
+
+`roadside_guardrail_low_wooden_01` is review-only until the SideObject Guardrail Review pass is accepted. Import it as a transparent Sprite with Point filtering, no mipmaps, no compression, 256 PPU, and bottom-center pivot `(0.5, 0.0)`.
 
 ## QA Gates
 

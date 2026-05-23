@@ -17,6 +17,9 @@ namespace NewTrip.Client.Road
         public Vector2 spawnSpacingMeters = new Vector2(10f, 24f);
         public float depthTravelMeters = 58f;
         public float depthMoveRate = 0.32f;
+        [Tooltip("Road-space offset for the outside edge of the shoulder. 1.0 is the road edge.")]
+        public float shoulderOuterRoadOffset = 1.18f;
+        public Vector2 lateralJitterRoadOffsets = new Vector2(0.02f, 0.16f);
         public List<RoadsideSpawnEntry> entries = new List<RoadsideSpawnEntry>();
 
         public RoadsideSpawnEntry Pick(System.Random random)
@@ -102,8 +105,11 @@ namespace NewTrip.Client.Road
         public Sprite sprite;
         public Color tint = Color.white;
         public RoadsideSide side = RoadsideSide.Right;
+        [Tooltip("Extra road-space offset outside the profile shoulder edge.")]
         public float laneOffset = 0.38f;
+        [Tooltip("Base scale for depth projection. Runtime scale uses baseScale * (1 - pow(depthT, 2.45)).")]
         public float nearScale = 1.25f;
+        [Tooltip("Legacy field retained for old profiles. SideObjectSpawner now uses nearScale as baseScale.")]
         public float farScale = 0.12f;
         public float parallaxSpeed = 1f;
         public float rarityWeight = 1f;

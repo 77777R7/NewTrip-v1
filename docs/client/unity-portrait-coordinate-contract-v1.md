@@ -31,14 +31,14 @@ This is the locked V1 driving angle. Do not tune background, car, road, or HUD a
 ```text
 car_anchor_x = 0.50
 car_anchor_y = 0.105
-road_horizon_y = 0.66
+road_horizon_y = 0.60
 HUD_safe_top_y = 0.86+
 ```
 
 Interpretation:
 
 - the rear car tire baseline sits near the lower-center anchor at `y = 0.105`;
-- the road vanishing point/horizon sits in the upper third at `y = 0.66`;
+- the accepted road vanishing point/horizon sits at `y = 0.60`, selected from Road Perspective Review candidate B to reduce the ramp-like pitch while keeping forward depth;
 - the lower camera feel comes from exponential projection depth rather than a real 3D camera tilt;
 - the top 14% of the portrait frame is reserved for HUD readability;
 - every future sky, far mountain, cliff, ocean, bridge, sign, tree, and weather layer must align around this same road horizon instead of inventing its own perspective.
@@ -61,7 +61,7 @@ Acceptance:
 
 - no road, car, foreground cliff, bridge, UI, signs, or weather;
 - top band remains visually calm for future HUD;
-- sun/ocean horizon sits close to `road_horizon_y = 0.66`;
+- sun/ocean horizon sits close to `road_horizon_y = 0.60`;
 - sky color is comfortable before any gameplay objects are layered on top.
 
 ## Step 3 Far Background Pass
@@ -88,7 +88,7 @@ Acceptance:
 - no white, gray, or checkerboard box is visible;
 - no second sun is introduced; `SunLayer` is disabled/replaced if the active sky already includes a sun;
 - the far mountains stay low-contrast enough that the road remains the visual anchor;
-- the far mountain base/shoreline lands around the road vanishing point, slightly above `road_horizon_y = 0.66`;
+- the far mountain base/shoreline lands around the road vanishing point, slightly above `road_horizon_y = 0.60`;
 - the road does not look like it floats in the sky, and the far layer does not block the road apex;
 - no car, bridge, foreground cliff, trees, signs, UI, or weather are added in this gate.
 
@@ -194,25 +194,25 @@ Current V1 prototype values:
 
 ```text
 center_x = 0.50
-horizon_y = 0.66
-bottom_y = -0.08
-near_half_width = 0.94
-horizon_half_width = 0.038
-depth_curve = 2.45
+horizon_y = 0.60
+bottom_y = -0.06
+near_half_width = 0.86
+horizon_half_width = 0.014
+depth_curve = 2.05
 ```
 
 This means:
 
-- the road vanishing point sits near the upper third, giving a lower-camera pseudo-3D feel;
+- the road vanishing point sits slightly above center, giving a gentler long-road pseudo-3D feel;
 - the road reaches below the car anchor, so the car never floats;
-- far slices compress aggressively while near slices stretch, matching the classic pseudo-3D road model;
+- far slices still compress while near slices stretch, matching the classic pseudo-3D road model without making the road read as a short ramp;
 - roadside objects that start at `depth = 1.0` appear near the horizon and move downward as they approach.
 
-### Gemini Low-Camera Projection
+### Accepted Reference Gentle Road Projection
 
-`RoadProjectionPreset.GeminiLowCamera` is now the active road contract requested after the Gemini visual review. It moves the vanishing point toward the upper third of the portrait frame and uses a stronger exponential depth curve so the near road stretches and far slices compress more aggressively.
+`RoadProjectionPreset.ReferenceGentleRoad` is now the active road contract after the Road Perspective Review Pass. It was selected because it keeps the accepted RoadOnly B lane/edge system, but makes the road feel less pitched upward and more like a coast road continuing into the distance.
 
-Use it without changing the core 9:16 frame, backend authority, or "no full road image" rule. Background, car, spawner, and HUD contracts must align to this horizon.
+`RoadProjectionPreset.GeminiLowCamera` remains only as the historical review A baseline. Do not switch back to it unless a new review explicitly reopens the road angle.
 
 ## Layer Anchors
 

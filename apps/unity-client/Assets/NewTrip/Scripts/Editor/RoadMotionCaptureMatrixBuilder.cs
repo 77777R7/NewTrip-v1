@@ -182,7 +182,7 @@ namespace NewTrip.Client.Editor
             roadRenderer.motionState = motionState;
             roadRenderer.renderWidth = RenderWidth;
             roadRenderer.renderHeight = RenderHeight;
-            roadRenderer.projectionPreset = RoadProjectionPreset.GeminiLowCamera;
+            roadRenderer.projectionPreset = RoadProjectionPreset.ReferenceGentleRoad;
             roadRenderer.applyProjectionPresetOnRebuild = true;
             roadRenderer.sliceCount = 72;
             roadRenderer.useDepthAwareMotion = true;

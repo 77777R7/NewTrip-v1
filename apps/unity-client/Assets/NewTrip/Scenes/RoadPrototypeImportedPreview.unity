@@ -234,7 +234,7 @@ MonoBehaviour:
   buildOnAwake: 1
   visualMode: 1
   activeSegment: 0
-  projectionPreset: 1
+  projectionPreset: 4
   showDebugOverlay: 1
   enableFarBackgroundLayer: 1
   enableRoadsideSpawner: 1

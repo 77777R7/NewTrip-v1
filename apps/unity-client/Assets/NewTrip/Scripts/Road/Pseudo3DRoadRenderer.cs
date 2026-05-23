@@ -20,7 +20,7 @@ namespace NewTrip.Client.Road
 
         public RoadMotionState motionState;
         public RoadProjectionSettings projection = new RoadProjectionSettings();
-        public RoadProjectionPreset projectionPreset = RoadProjectionPreset.GeminiLowCamera;
+        public RoadProjectionPreset projectionPreset = RoadProjectionPreset.ReferenceGentleRoad;
         public bool applyProjectionPresetOnRebuild = true;
 
         [Range(8, 96)]

@@ -17,7 +17,7 @@ namespace NewTrip.Client.Road
         public bool buildOnAwake = true;
         public RoadPrototypeVisualMode visualMode = RoadPrototypeVisualMode.PlaceholderOnly;
         public RoadVisualSegmentKey activeSegment = RoadVisualSegmentKey.CoastalCliffsSunset;
-        public RoadProjectionPreset projectionPreset = RoadProjectionPreset.GeminiLowCamera;
+        public RoadProjectionPreset projectionPreset = RoadProjectionPreset.ReferenceGentleRoad;
         public bool showDebugOverlay = true;
         public bool enableFarBackgroundLayer;
         public bool enableRoadsideSpawner;
